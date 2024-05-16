@@ -17,9 +17,7 @@ export function Header() {
         </Link>
       )}
 
-      <header className="header">
-        <Firebase />
-      </header>
+      <header className="header">Secret Agent</header>
     </>
   );
 }
