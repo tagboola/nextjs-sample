@@ -9,7 +9,7 @@ export function ChatHistory({ messages }: ChatHistoryProps) {
     <div className="chat-history-container">
       {messages.map((message, index) => {
         return (
-          <div className="message" id={message.id}>
+          <div className="message" key={message.id}>
             {message.value}
           </div>
         );
