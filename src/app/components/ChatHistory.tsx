@@ -7,13 +7,15 @@ export interface ChatHistoryProps {
 export function ChatHistory({ messages }: ChatHistoryProps) {
   return (
     <div className="chat-history-container">
-      {messages.map((message, index) => {
-        return (
-          <div className="message" key={message.id}>
-            {message.value}
-          </div>
-        );
-      })}
+      <div className="chat-history">
+        {messages.map((message, index) => {
+          return (
+            <div className="message" key={message.id}>
+              {message.value}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
