@@ -65,6 +65,7 @@ main {
 .chat-container {
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 .chat-container .chat-history-container {
