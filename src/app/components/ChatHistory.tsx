@@ -1,5 +1,6 @@
 import { Message } from "../types";
-import { PromptForm } from "./PromptForm";
+import { AgentChatMessage } from "./AgentChatMessage";
+import { UserChatMessage } from "./UserChatMessage";
 
 export interface ChatHistoryProps {
   messages: Message[];
@@ -9,11 +10,21 @@ export function ChatHistory({ messages }: ChatHistoryProps) {
     <div className="chat-history-container">
       <div className="chat-history">
         {messages.map((message, index) => {
-          return (
-            <div className="message" key={message.id}>
-              {message.value}
-            </div>
-          );
+          if (message.role === "user") {
+            return (
+              <UserChatMessage
+                message={message}
+                key={message.id}
+              ></UserChatMessage>
+            );
+          } else {
+            return (
+              <AgentChatMessage
+                message={message}
+                key={message.id}
+              ></AgentChatMessage>
+            );
+          }
         })}
       </div>
     </div>
