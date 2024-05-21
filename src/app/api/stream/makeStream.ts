@@ -1,4 +1,4 @@
-// Takes an [AsyncGenerator] and returns a [ReadableStream] which can be
+// Takes an [AsyncGenerator] and returns a [ReadableStream]
 export const makeStream = async <T extends string>(
   generator: AsyncGenerator<T, void, unknown>
 ) => {
