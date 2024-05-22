@@ -15,7 +15,7 @@ export function ChatPanel({
 }: ChatPanelProps) {
   return (
     <div className="chat-panel-container">
-      <div className="form-container">
+      <div className="chat-form-container">
         <PromptForm
           input={input}
           setInput={setInput}

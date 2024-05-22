@@ -3,6 +3,7 @@
 import { FormEvent } from "react";
 import { Message } from "../types";
 import { nanoid } from "nanoid";
+import TextField from "@mui/material/TextField";
 
 export function PromptForm({
   input,
@@ -48,11 +49,14 @@ export function PromptForm({
 
   return (
     <form onSubmit={handleSubmit}>
-      <input
+      <TextField
+        required
         placeholder="Enter prompt here"
         value={input}
         onChange={(e) => setInput(e.target.value)}
-      ></input>
+        variant="outlined"
+        fullWidth
+      ></TextField>
     </form>
   );
 }
@@ -90,11 +94,13 @@ async function generateResponse(
     `/api/stream/generate?prompt=${encodeURIComponent(prompt)}`
   );
 
-  if (!response.body) {
+  const body = response.body;
+  if (!body) {
     // Do something!
+    return;
   }
 
-  const reader = response.body!.getReader();
+  const reader = body.getReader();
   const decoder = new TextDecoder("utf-8");
 
   incompleteMessage.value = "";

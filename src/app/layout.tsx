@@ -12,7 +12,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className="dark-theme">
+    <html lang="en">
       <head>
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link
