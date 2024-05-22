@@ -81,6 +81,23 @@ main {
 .chat-container .chat-history-container .chat-history .chat-message-container {
   display: flex;
   padding: 10px 0px 10px;
+  line-height: 1.75rem;
+}
+
+.chat-container
+  .chat-history-container
+  .chat-history
+  .chat-message-container
+  .chat-message-icon-container {
+  margin-right: 10px;
+}
+
+.chat-container
+  .chat-history-container
+  .chat-history
+  .chat-message-container
+  .chat-message-content-container {
+  width: 100%;
 }
 
 .chat-panel-container {
