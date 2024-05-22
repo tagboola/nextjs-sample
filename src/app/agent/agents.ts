@@ -1,7 +1,7 @@
-import { index, Message, retrieve } from '@genkit-ai/ai';
-import { defineModel, MessageData, Part } from '@genkit-ai/ai/model';
-import { IndexerArgument, RetrieverArgument } from '@genkit-ai/ai/retriever';
-import { defineFlow, runFlow } from '@genkit-ai/flow';
+import { index, Message, retrieve } from "@genkit-ai/ai";
+import { defineModel, MessageData, Part } from "@genkit-ai/ai/model";
+import { IndexerArgument, RetrieverArgument } from "@genkit-ai/ai/retriever";
+import { defineFlow, runFlow } from "@genkit-ai/flow";
 import {
   FirebaseAgentConfigSchema,
   FirebaseAgentCustomOptions,
@@ -9,7 +9,7 @@ import {
   FirebaseAgentFn,
   FirebaseAgentMessage,
   FirebaseAgentMessageSchema,
-} from './types';
+} from "./types";
 
 // Define a Firebase agent
 // Defines a flow and a model which implement the agent behavior
@@ -52,7 +52,7 @@ export function defineFirebaseAgent(
         messages: previousMessages,
       });
       const agentMessageData: MessageData = {
-        role: 'model',
+        role: "model",
         content: agentFnResponse,
       };
       // Add both the user message and the agent response to the session using the indexer
@@ -72,7 +72,7 @@ export function defineFirebaseAgent(
           {
             content: [{ text: new Message(agentMessageData).text() }],
             metadata: {
-              message: { role: 'model', content: agentFnResponse },
+              message: { role: "model", content: agentFnResponse },
             },
           },
         ],
@@ -89,14 +89,14 @@ export function defineFirebaseAgent(
   const modelAction = defineModel(
     {
       name: registryKey,
-      label: 'Agent',
+      label: "Agent",
       configSchema: FirebaseAgentConfigSchema,
       supports: {
         multiturn: true,
         media: true,
         systemRole: true,
         tools: true,
-        output: ['text'],
+        output: ["text"],
       },
     },
     async (request) => {
@@ -108,9 +108,9 @@ export function defineFirebaseAgent(
         // Set them in the system prompt as JSON
         // {"userId": "u1111", "sessionId": "s1111"}
         const systemMessage = request.messages[0];
-        if (systemMessage.role === 'system') {
+        if (systemMessage.role === "system") {
           const customParams = JSON.parse(
-            systemMessage.content[0].text || ''
+            systemMessage.content[0].text || ""
           ) as FirebaseAgentCustomOptions;
           userId = customParams.userId;
           sessionId = customParams.sessionId;
@@ -118,15 +118,15 @@ export function defineFirebaseAgent(
       }
       if (userId === undefined || sessionId === undefined) {
         throw new Error(
-          'The userId and sessionId missing. Add them to the system prompt.'
+          "The userId and sessionId missing. Add them to the system prompt."
         );
       }
       const flowInput: FirebaseAgentMessage = {
         userId: userId,
         sessionId: sessionId,
         message: request.messages.at(-1) || {
-          role: 'user',
-          content: [{ text: '' }],
+          role: "user",
+          content: [{ text: "" }],
         },
       };
       const flowResult: FirebaseAgentMessage = await runFlow(
@@ -138,7 +138,7 @@ export function defineFirebaseAgent(
           {
             index: 0,
             message: flowResult.message,
-            finishReason: 'other',
+            finishReason: "stop",
             custom: {},
           },
         ],

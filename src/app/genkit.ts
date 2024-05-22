@@ -19,36 +19,6 @@ configureGenkit({
   enableTracingAndMetrics: true,
 });
 
-const agentFlow = defineFlow(
-  {
-    name: "agentFlow",
-    inputSchema: z.string(),
-    outputSchema: z.string(),
-    streamSchema: z.string(),
-  },
-  async (prompt, streamingCallback) => {
-    const llmResponse = await generate({
-      prompt: prompt,
-      model: geminiPro,
-      config: {
-        temperature: 1,
-      },
-      streamingCallback: (chunk) => {
-        console.log(`Chunk: ${JSON.stringify(chunk)}`);
-        if (streamingCallback) {
-          streamingCallback(chunk.text());
-        }
-      },
-    });
-
-    return llmResponse.text();
-  }
-);
-
-export async function streamAgentFlow(prompt: string) {
-  return streamFlow(agentFlow, prompt);
-}
-
 // Restaurant bot
 
 const restaurantBotPreamblePrompt: MessageData[] = [
@@ -102,3 +72,40 @@ const restaurantBot = defineFirebaseAgent(
     return [{ text: modelResponse.text() }];
   }
 );
+
+const userId = "user001";
+const sessionId = "session001";
+
+const agentFlow = defineFlow(
+  {
+    name: "agentFlow",
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+    streamSchema: z.string(),
+  },
+  async (prompt, streamingCallback) => {
+    const llmResponse = await generate({
+      prompt: prompt,
+      model: restaurantBot,
+      config: {
+        temperature: 0.5,
+        agent: {
+          userId: userId,
+          sessionId: sessionId,
+        },
+      },
+      streamingCallback: (chunk) => {
+        console.log(`Chunk: ${JSON.stringify(chunk)}`);
+        if (streamingCallback) {
+          streamingCallback(chunk.text());
+        }
+      },
+    });
+
+    return llmResponse.text();
+  }
+);
+
+export async function streamAgentFlow(prompt: string) {
+  return streamFlow(agentFlow, prompt);
+}
