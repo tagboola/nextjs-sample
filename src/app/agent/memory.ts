@@ -1,5 +1,5 @@
-import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
-import { MessageData } from '@genkit-ai/ai/model';
+import { embed, EmbedderArgument } from "@genkit-ai/ai/embedder";
+import { MessageData } from "@genkit-ai/ai/model";
 import {
   defineIndexer,
   defineRetriever,
@@ -7,14 +7,14 @@ import {
   IndexerAction,
   RetrieverAction,
   RetrieverReference,
-} from '@genkit-ai/ai/retriever';
+} from "@genkit-ai/ai/retriever";
 import {
   CollectionReference,
   DocumentReference,
   FieldValue,
   Firestore,
-} from '@google-cloud/firestore';
-import { FirebaseAgentCustomOptionsSchema } from './types';
+} from "@google-cloud/firestore";
+import { FirebaseAgentCustomOptionsSchema } from "./types";
 
 interface FirebaseAgentMessageDocument {
   timestamp: number;
@@ -29,7 +29,7 @@ export function defineFirestoreAgentMemory(options: {
   return new FirestoreAgentMemory({
     name: options.name,
     firestore: {
-      database: options.firestore?.database || '(default)',
+      database: options.firestore?.database || "(default)",
     },
   });
 }
@@ -45,7 +45,7 @@ export class FirestoreAgentMemory {
       databaseId: options.firestore.database,
       ignoreUndefinedProperties: true,
     });
-    this.firestoreDocumentRef = this.db.collection('agents').doc(options.name);
+    this.firestoreDocumentRef = this.db.collection("agents").doc(options.name);
   }
 
   // Defines a normal indexer which saves all messages to Firestore.
@@ -139,18 +139,18 @@ export class FirestoreAgentMemory {
           options.userId,
           options.sessionId
         )
-          .orderBy('timestamp', 'desc')
+          .orderBy("timestamp", "desc")
           .limit(params?.limit || 4)
           .get();
         let results: DocumentData[] = [];
         queryResult.forEach((record) => {
           const doc = record.data() as FirebaseAgentMessageDocument;
           results.push({
-            content: [{ text: '' }],
+            content: [{ text: "" }],
             metadata: { message: doc.message },
           });
         });
-        return { documents: results };
+        return { documents: FirestoreAgentMemory.sortByTimestamp(results) };
       }
     );
   }
@@ -179,16 +179,16 @@ export class FirestoreAgentMemory {
           options.userId,
           options.sessionId
         )
-          .findNearest('embedding', embedVector, {
+          .findNearest("embedding", embedVector, {
             limit: params.limit || 5,
-            distanceMeasure: 'COSINE',
+            distanceMeasure: "COSINE",
           })
           .get();
         let results: DocumentData[] = [];
         queryResult.forEach((record) => {
           const doc = record.data() as FirebaseAgentMessageDocument;
           results.push({
-            content: [{ text: '' }],
+            content: [{ text: "" }],
             metadata: { message: doc.message },
           });
         });
@@ -213,10 +213,10 @@ export class FirestoreAgentMemory {
     sessionId: string
   ): CollectionReference {
     return this.firestoreDocumentRef
-      .collection('users')
+      .collection("users")
       .doc(userId)
-      .collection('sessions')
+      .collection("sessions")
       .doc(sessionId)
-      .collection('messages');
+      .collection("messages");
   }
 }

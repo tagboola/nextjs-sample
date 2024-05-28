@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent } from "react";
+import { FormEvent, useState } from "react";
 import { Message } from "../types";
 import { nanoid } from "nanoid";
 import TextField from "@mui/material/TextField";
@@ -16,6 +16,9 @@ export function PromptForm({
   messages: Message[];
   setMessages: (value: Message[]) => void;
 }) {
+  // Generate a new session id on each page reload
+  const [sessionId, setSessionId] = useState<string>(nanoid());
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     // Prevent the browser from reloading the page
     event.preventDefault();
@@ -41,6 +44,7 @@ export function PromptForm({
 
     await generateResponse(
       prompt,
+      sessionId,
       completedMessages,
       incompleteMessage,
       setMessages
@@ -86,12 +90,15 @@ export async function* streamingFetch(
 
 async function generateResponse(
   prompt: string,
+  sessionId: string,
   completedMessages: Message[],
   incompleteMessage: Message,
   setMessages: (value: Message[]) => void
 ) {
   const response = await fetch(
-    `/api/stream/generate?prompt=${encodeURIComponent(prompt)}`
+    `/api/stream/generate?sessionId=${sessionId}&prompt=${encodeURIComponent(
+      prompt
+    )}`
   );
 
   const body = response.body;

@@ -1,9 +1,11 @@
 import {
+  GenerateResponseChunkData,
   GenerationCommonConfigSchema,
   MessageSchema,
   Part,
-} from '@genkit-ai/ai/model';
-import * as z from 'zod';
+} from "@genkit-ai/ai/model";
+import { StreamingCallback } from "@genkit-ai/core";
+import * as z from "zod";
 
 export const FirebaseAgentMessageSchema = z.object({
   userId: z.string(),
@@ -26,7 +28,8 @@ export type FirebaseAgentSession = z.infer<typeof FirebaseAgentSessionSchema>;
 
 export type FirebaseAgentFn = (
   request: FirebaseAgentMessage,
-  session: FirebaseAgentSession
+  session: FirebaseAgentSession,
+  streamingCallback: StreamingCallback<GenerateResponseChunkData> | undefined
 ) => Promise<Part[]>;
 
 // Agent model custom options

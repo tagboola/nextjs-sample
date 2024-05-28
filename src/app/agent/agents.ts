@@ -1,7 +1,14 @@
-import { index, Message, retrieve } from '@genkit-ai/ai';
-import { defineModel, MessageData, Part } from '@genkit-ai/ai/model';
-import { IndexerArgument, RetrieverArgument } from '@genkit-ai/ai/retriever';
-import { defineFlow, runFlow } from '@genkit-ai/flow';
+import { index, Message, retrieve } from "@genkit-ai/ai";
+import {
+  defineModel,
+  GenerateResponseChunkData,
+  GenerateResponseChunkSchema,
+  MessageData,
+  Part,
+} from "@genkit-ai/ai/model";
+import { IndexerArgument, RetrieverArgument } from "@genkit-ai/ai/retriever";
+import { defineFlow, streamFlow } from "@genkit-ai/flow";
+
 import {
   FirebaseAgentConfigSchema,
   FirebaseAgentCustomOptions,
@@ -9,7 +16,7 @@ import {
   FirebaseAgentFn,
   FirebaseAgentMessage,
   FirebaseAgentMessageSchema,
-} from './types';
+} from "./types";
 
 // Define a Firebase agent
 // Defines a flow and a model which implement the agent behavior
@@ -30,8 +37,12 @@ export function defineFirebaseAgent(
       name: registryKey,
       inputSchema: FirebaseAgentMessageSchema,
       outputSchema: FirebaseAgentMessageSchema,
+      streamSchema: GenerateResponseChunkSchema,
     },
-    async (request: FirebaseAgentMessage): Promise<FirebaseAgentMessage> => {
+    async (
+      request: FirebaseAgentMessage,
+      streamingCallback
+    ): Promise<FirebaseAgentMessage> => {
       // Some set of previous messages will be fetched according to the retriever's logic
       const documents = await retrieve({
         retriever: options.retriever,
@@ -46,13 +57,17 @@ export function defineFirebaseAgent(
         documents.map((doc) => doc.metadata?.message as MessageData)
       );
       // Call the developer's agent function
-      const agentFnResponse: Part[] = await fn(request, {
-        userId: request.userId,
-        sessionId: request.sessionId,
-        messages: previousMessages,
-      });
+      const agentFnResponse: Part[] = await fn(
+        request,
+        {
+          userId: request.userId,
+          sessionId: request.sessionId,
+          messages: previousMessages,
+        },
+        streamingCallback
+      );
       const agentMessageData: MessageData = {
-        role: 'model',
+        role: "model",
         content: agentFnResponse,
       };
       // Add both the user message and the agent response to the session using the indexer
@@ -72,7 +87,7 @@ export function defineFirebaseAgent(
           {
             content: [{ text: new Message(agentMessageData).text() }],
             metadata: {
-              message: { role: 'model', content: agentFnResponse },
+              message: { role: "model", content: agentFnResponse },
             },
           },
         ],
@@ -89,17 +104,17 @@ export function defineFirebaseAgent(
   const modelAction = defineModel(
     {
       name: registryKey,
-      label: 'Agent',
+      label: "Agent",
       configSchema: FirebaseAgentConfigSchema,
       supports: {
         multiturn: true,
         media: true,
         systemRole: true,
         tools: true,
-        output: ['text'],
+        output: ["text"],
       },
     },
-    async (request) => {
+    async (request, streamingCallback) => {
       let userId: any = request.config?.agent?.userId;
       let sessionId: any = request.config?.agent?.sessionId;
       if (userId === undefined || sessionId === undefined) {
@@ -108,9 +123,9 @@ export function defineFirebaseAgent(
         // Set them in the system prompt as JSON
         // {"userId": "u1111", "sessionId": "s1111"}
         const systemMessage = request.messages[0];
-        if (systemMessage.role === 'system') {
+        if (systemMessage.role === "system") {
           const customParams = JSON.parse(
-            systemMessage.content[0].text || ''
+            systemMessage.content[0].text || ""
           ) as FirebaseAgentCustomOptions;
           userId = customParams.userId;
           sessionId = customParams.sessionId;
@@ -118,27 +133,36 @@ export function defineFirebaseAgent(
       }
       if (userId === undefined || sessionId === undefined) {
         throw new Error(
-          'The userId and sessionId missing. Add them to the system prompt.'
+          "The userId and sessionId missing. Add them to the system prompt."
         );
       }
       const flowInput: FirebaseAgentMessage = {
         userId: userId,
         sessionId: sessionId,
         message: request.messages.at(-1) || {
-          role: 'user',
-          content: [{ text: '' }],
+          role: "user",
+          content: [{ text: "" }],
         },
       };
-      const flowResult: FirebaseAgentMessage = await runFlow(
-        flowAction,
-        flowInput
-      );
+      // Stream it
+      const streamingFlow = streamFlow(flowAction, flowInput);
+
+      const gen = function* (chunk: GenerateResponseChunkData) {
+        if (streamingCallback) {
+          yield streamingCallback(chunk as GenerateResponseChunkData);
+        }
+      };
+      for await (const chunk of streamingFlow.stream()) {
+        gen(chunk as GenerateResponseChunkData);
+      }
+      const flowResult = await streamingFlow.output();
+
       return {
         candidates: [
           {
             index: 0,
             message: flowResult.message,
-            finishReason: 'other',
+            finishReason: "other",
             custom: {},
           },
         ],
@@ -148,5 +172,5 @@ export function defineFirebaseAgent(
     }
   );
 
-  return modelAction;
+  return flowAction;
 }

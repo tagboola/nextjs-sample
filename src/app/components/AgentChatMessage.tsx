@@ -9,7 +9,14 @@ export interface AgentChatMessageProps {
 export function AgentChatMessage({ message }: AgentChatMessageProps) {
   function renderMessage() {
     if (message.value && message.value.length > 0) {
-      return <div className="chat-message-container">{message.value}</div>;
+      // Translate line breaks from the model
+      const formatted = message.value.replaceAll("\n", "<br/>");
+      return (
+        <div
+          className="chat-message-container"
+          dangerouslySetInnerHTML={{ __html: formatted }}
+        />
+      );
     } else {
       return (
         <Stack sx={{ width: "100%", color: "grey.500" }} spacing={2}>
