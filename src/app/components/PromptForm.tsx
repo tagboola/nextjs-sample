@@ -116,8 +116,13 @@ async function generateResponse(
     if (done) break;
 
     try {
-      incompleteMessage.value += decoder.decode(value);
-      setMessages([...completedMessages, incompleteMessage]);
+      const decodedValue = decoder.decode(value);
+      for (const c of decodedValue) {
+        console.log("update message!");
+        incompleteMessage.value += c;
+        setMessages([...completedMessages, incompleteMessage]);
+        await new Promise((r) => setTimeout(r, 2));
+      }
     } catch (e: any) {
       console.warn(e.message);
     }
