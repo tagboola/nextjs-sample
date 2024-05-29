@@ -7,7 +7,7 @@ import {
   Part,
 } from "@genkit-ai/ai/model";
 import { IndexerArgument, RetrieverArgument } from "@genkit-ai/ai/retriever";
-import { defineFlow, streamFlow } from "@genkit-ai/flow";
+import { defineFlow, runFlow, streamFlow } from "@genkit-ai/flow";
 
 import {
   FirebaseAgentConfigSchema,
@@ -56,13 +56,15 @@ export function defineFirebaseAgent(
       const previousMessages: MessageData[] = (options.preamble || []).concat(
         documents.map((doc) => doc.metadata?.message as MessageData)
       );
+      // Ensure that the retrieved session is a valid exchange, ending with a model message
+      const validSession = makeValidExchange(previousMessages);
       // Call the developer's agent function
       const agentFnResponse: Part[] = await fn(
         request,
         {
           userId: request.userId,
           sessionId: request.sessionId,
-          messages: previousMessages,
+          messages: validSession,
         },
         streamingCallback
       );
@@ -144,33 +146,80 @@ export function defineFirebaseAgent(
           content: [{ text: "" }],
         },
       };
-      // Stream it
-      const streamingFlow = streamFlow(flowAction, flowInput);
 
-      const gen = function* (chunk: GenerateResponseChunkData) {
-        if (streamingCallback) {
-          yield streamingCallback(chunk as GenerateResponseChunkData);
+      let resultMessage: MessageData | undefined;
+      if (streamingCallback) {
+        // Stream result from flow
+        const streamingFlow = streamFlow(flowAction, flowInput);
+        const gen = function* (chunk: GenerateResponseChunkData) {
+          if (streamingCallback) {
+            yield streamingCallback(chunk as GenerateResponseChunkData);
+          }
+        };
+        for await (const chunk of streamingFlow.stream()) {
+          gen(chunk as GenerateResponseChunkData);
         }
-      };
-      for await (const chunk of streamingFlow.stream()) {
-        gen(chunk as GenerateResponseChunkData);
+        const flowResult = await streamingFlow.output();
+        resultMessage = flowResult.message;
+      } else {
+        // No stream
+        const flowResult = await runFlow(flowAction, flowInput);
+        resultMessage = flowResult.message;
       }
-      const flowResult = await streamingFlow.output();
-
       return {
         candidates: [
           {
             index: 0,
-            message: flowResult.message,
-            finishReason: "other",
+            message: resultMessage,
+            finishReason: "stop",
             custom: {},
           },
         ],
-        custom: {},
-        usage: {},
       };
     }
   );
 
   return flowAction;
+}
+
+// Some models (Gemini) require history to be a strict exchange
+// user / model / user / etc.
+// This modifies any partial history retrieval to be a valid exchange
+
+function makeValidExchange(messages: MessageData[]): MessageData[] {
+  type Role = "model" | "tool" | "system" | "user";
+  let next: MessageData | undefined = messages.shift();
+  let nextRole: Role | undefined = next?.role;
+  let prev: MessageData | undefined;
+  let prevRole: Role | undefined;
+  const validHistory: MessageData[] = [];
+  const pushOkMessage = (role: Role) => {
+    validHistory.push({ role: role, content: [{ text: "OK" }] });
+  };
+
+  while (next) {
+    if (prevRole === "user" && nextRole === "user") {
+      pushOkMessage("model");
+      validHistory.push(next);
+    } else if (prevRole === "model" && nextRole === "model") {
+      pushOkMessage("user");
+      validHistory.push(next);
+    } else if (prevRole === "tool" && nextRole === "user") {
+      pushOkMessage("model");
+      validHistory.push(next);
+    } else if (prevRole === "system" && nextRole === "model") {
+      pushOkMessage("user");
+      validHistory.push(next);
+    } else {
+      validHistory.push(next);
+    }
+    prev = next;
+    prevRole = nextRole;
+    next = messages.shift();
+    nextRole = next?.role;
+  }
+  if (prevRole != "model") {
+    pushOkMessage("model");
+  }
+  return validHistory;
 }

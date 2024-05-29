@@ -4,7 +4,12 @@ import { Message, defineTool, generate } from "@genkit-ai/ai";
 import { GenerateResponseChunkData, MessageData } from "@genkit-ai/ai/model";
 import { StreamingCallback, configureGenkit } from "@genkit-ai/core";
 import { defineFlow, streamFlow } from "@genkit-ai/flow";
-import { gemini15Pro, googleAI } from "@genkit-ai/googleai";
+import {
+  gemini15Pro,
+  googleAI,
+  textEmbeddingGecko001,
+} from "@genkit-ai/googleai";
+import { firebase } from "@genkit-ai/firebase";
 import * as z from "zod";
 import {
   defineFirebaseAgent,
@@ -13,9 +18,15 @@ import {
 } from "./agent";
 
 configureGenkit({
-  plugins: [googleAI({ apiVersion: "v1beta" }), firebaseAgent()],
-  logLevel: "debug",
+  plugins: [
+    googleAI({ apiVersion: ["v1beta", "v1"] }),
+    firebase(),
+    firebaseAgent(),
+  ],
+  logLevel: "info",
   enableTracingAndMetrics: true,
+  flowStateStore: "firebase",
+  traceStore: "firebase",
 });
 
 // Restaurant bot
@@ -33,7 +44,7 @@ const readMenuTool = defineTool(
         .describe("An array of all the items on the menu"),
     }),
   },
-  async (input: { restaurant: any; }) => {
+  async (input: { restaurant: any }) => {
     // Implement the tool...
     console.log(`Reading the menu at ${input.restaurant}`);
     return {
@@ -68,7 +79,7 @@ const makeReservationTool = defineTool(
         .describe("An explanantion for why the reservation was made or denied"),
     }),
   },
-  async (input: { customerName: any; restaurant: any; }) => {
+  async (input: { customerName: any; restaurant: any }) => {
     // Implement the tool...
     console.log(
       `Making a reservation for ${input.customerName} at ${input.restaurant}`
@@ -95,6 +106,7 @@ const restaurantBotPreamblePrompt: MessageData[] = [
     even make reservations for you using my tools. 
     
     I can also willingly answer any question at all about food, at length.
+    I have a memory of what we've talked about in the past, but it's not perfect.
     `,
       },
     ],
@@ -108,9 +120,11 @@ const memory = defineFirestoreAgentMemory({
 const restaurantBotFlow = defineFirebaseAgent(
   {
     name: "restaurantBot",
-    indexer: memory.defineIndexer(),
-    retriever: memory.definePartialHistoryRetriever({
-      limit: 40,
+    indexer: memory.defineVectorIndexer({ embedder: textEmbeddingGecko001 }),
+    retriever: memory.defineRecentAndSimilarHistoryRetriever({
+      embedder: textEmbeddingGecko001,
+      recentLimit: 4,
+      similarLimit: 6,
     }),
     preamble: restaurantBotPreamblePrompt,
   },
@@ -165,14 +179,14 @@ const simpleFlow = defineFlow(
     outputSchema: z.string(),
     streamSchema: z.string(),
   },
-  async (prompt: any, streamingCallback: (arg0: any) => void) => {
+  async (prompt: string, streamingCallback) => {
     const llmResponse = await generate({
       prompt: prompt,
       model: gemini15Pro,
       config: {
         temperature: 1,
       },
-      streamingCallback: (chunk: { text: () => any; }) => {
+      streamingCallback: (chunk: { text: () => any }) => {
         console.log(`Chunk: ${JSON.stringify(chunk)}`);
         if (streamingCallback) {
           streamingCallback(chunk.text());
