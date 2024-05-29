@@ -33,7 +33,7 @@ const readMenuTool = defineTool(
         .describe("An array of all the items on the menu"),
     }),
   },
-  async (input) => {
+  async (input: { restaurant: any; }) => {
     // Implement the tool...
     console.log(`Reading the menu at ${input.restaurant}`);
     return {
@@ -68,7 +68,7 @@ const makeReservationTool = defineTool(
         .describe("An explanantion for why the reservation was made or denied"),
     }),
   },
-  async (input) => {
+  async (input: { customerName: any; restaurant: any; }) => {
     // Implement the tool...
     console.log(
       `Making a reservation for ${input.customerName} at ${input.restaurant}`
@@ -127,7 +127,7 @@ const restaurantBotFlow = defineFirebaseAgent(
       config: {
         temperature: 0.25,
       },
-      streamingCallback: (chunk) => {
+      streamingCallback: (chunk: any) => {
         if (buffer) {
           buffer.push(chunk);
         }
@@ -165,14 +165,14 @@ const simpleFlow = defineFlow(
     outputSchema: z.string(),
     streamSchema: z.string(),
   },
-  async (prompt, streamingCallback) => {
+  async (prompt: any, streamingCallback: (arg0: any) => void) => {
     const llmResponse = await generate({
       prompt: prompt,
-      model: geminiPro,
+      model: gemini15Pro,
       config: {
         temperature: 1,
       },
-      streamingCallback: (chunk) => {
+      streamingCallback: (chunk: { text: () => any; }) => {
         console.log(`Chunk: ${JSON.stringify(chunk)}`);
         if (streamingCallback) {
           streamingCallback(chunk.text());
@@ -212,7 +212,7 @@ class StreamBuffer {
   push(chunk: GenerateResponseChunkData) {
     const message = new Message({ role: "model", content: chunk.content });
     const words = message.text().split(" ");
-    words.forEach((w) => this.buffer.push(w + " "));
+    words.forEach((w: string) => this.buffer.push(w + " "));
   }
 
   // Pops off some number of words every interval and calls streaming callback
