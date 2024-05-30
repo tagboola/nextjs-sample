@@ -16,17 +16,23 @@ import {
   defineFirestoreAgentMemory,
   firebaseAgent,
 } from "./agent";
+import { googleCloud } from "@genkit-ai/google-cloud";
 
 configureGenkit({
   plugins: [
     googleAI({ apiVersion: ["v1beta", "v1"] }),
     firebase(),
     firebaseAgent(),
+    googleCloud(),
   ],
   logLevel: "info",
   enableTracingAndMetrics: true,
   flowStateStore: "firebase",
   traceStore: "firebase",
+  telemetry: {
+    instrumentation: "googleCloud",
+    logger: "googleCloud",
+  },
 });
 
 // Restaurant bot
@@ -50,7 +56,7 @@ const readMenuTool = defineTool(
     return {
       menuItems: ["Cheeseburger", "Fries"],
     };
-  }
+  },
 );
 
 const makeReservationTool = defineTool(
@@ -72,7 +78,7 @@ const makeReservationTool = defineTool(
       reserved: z
         .boolean()
         .describe(
-          "True if a table was reserved, or false if nothing was available"
+          "True if a table was reserved, or false if nothing was available",
         ),
       details: z
         .string()
@@ -82,13 +88,13 @@ const makeReservationTool = defineTool(
   async (input: { customerName: any; restaurant: any }) => {
     // Implement the tool...
     console.log(
-      `Making a reservation for ${input.customerName} at ${input.restaurant}`
+      `Making a reservation for ${input.customerName} at ${input.restaurant}`,
     );
     return {
       reserved: false,
       details: "Busy signal",
     };
-  }
+  },
 );
 
 const restaurantBotPreamblePrompt: MessageData[] = [
@@ -152,7 +158,7 @@ const restaurantBotFlow = defineFirebaseAgent(
       await buffer.end();
     }
     return modelResponse.candidates[0].message.content;
-  }
+  },
 );
 
 // These need to be moved into the UI somewhere
@@ -160,7 +166,7 @@ const restaurantBotFlow = defineFirebaseAgent(
 export async function streamAgentFlow(
   userId: string,
   sessionId: string,
-  prompt: string
+  prompt: string,
 ) {
   return streamFlow(restaurantBotFlow, {
     userId: userId,
@@ -181,7 +187,7 @@ const simpleFlow = defineFlow(
   },
   async (
     prompt: string,
-    streamingCallback: StreamingCallback<string> | undefined
+    streamingCallback: StreamingCallback<string> | undefined,
   ) => {
     const llmResponse = await generate({
       prompt: prompt,
@@ -198,7 +204,7 @@ const simpleFlow = defineFlow(
     });
 
     return llmResponse.text();
-  }
+  },
 );
 
 export async function streamSimpleFlow(prompt: string) {
@@ -214,7 +220,7 @@ class StreamBuffer {
 
   constructor(
     callback: StreamingCallback<GenerateResponseChunkData>,
-    chunkSize: number = 1
+    chunkSize: number = 1,
   ) {
     this.callback = callback;
     this.buffer = [];
