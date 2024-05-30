@@ -179,7 +179,10 @@ const simpleFlow = defineFlow(
     outputSchema: z.string(),
     streamSchema: z.string(),
   },
-  async (prompt: string, streamingCallback) => {
+  async (
+    prompt: string,
+    streamingCallback: StreamingCallback<string> | undefined
+  ) => {
     const llmResponse = await generate({
       prompt: prompt,
       model: gemini15Pro,
