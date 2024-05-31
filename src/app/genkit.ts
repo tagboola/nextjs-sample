@@ -14,6 +14,7 @@ import * as z from "zod";
 import {
   defineFirebaseAgent,
   defineFirestoreAgentMemory,
+  executeTools,
   firebaseAgent,
 } from "./agent";
 import { googleCloud } from "@genkit-ai/google-cloud";
@@ -56,7 +57,7 @@ const readMenuTool = defineTool(
     return {
       menuItems: ["Cheeseburger", "Fries"],
     };
-  },
+  }
 );
 
 const makeReservationTool = defineTool(
@@ -78,7 +79,7 @@ const makeReservationTool = defineTool(
       reserved: z
         .boolean()
         .describe(
-          "True if a table was reserved, or false if nothing was available",
+          "True if a table was reserved, or false if nothing was available"
         ),
       details: z
         .string()
@@ -88,13 +89,13 @@ const makeReservationTool = defineTool(
   async (input: { customerName: any; restaurant: any }) => {
     // Implement the tool...
     console.log(
-      `Making a reservation for ${input.customerName} at ${input.restaurant}`,
+      `Making a reservation for ${input.customerName} at ${input.restaurant}`
     );
     return {
       reserved: false,
       details: "Busy signal",
     };
-  },
+  }
 );
 
 const restaurantBotPreamblePrompt: MessageData[] = [
@@ -119,6 +120,8 @@ const restaurantBotPreamblePrompt: MessageData[] = [
   },
 ];
 
+const tools = [readMenuTool, makeReservationTool];
+
 const memory = defineFirestoreAgentMemory({
   name: "restaurantBotMemory",
 });
@@ -133,6 +136,7 @@ const restaurantBotFlow = defineFirebaseAgent(
       similarLimit: 6,
     }),
     preamble: restaurantBotPreamblePrompt,
+    tools: tools,
   },
   async (request, session, streamingCallback) => {
     const buffer: StreamBuffer | undefined = streamingCallback
@@ -143,11 +147,12 @@ const restaurantBotFlow = defineFirebaseAgent(
       model: gemini15Pro,
       prompt: request.message.content,
       history: session.messages,
-      tools: [readMenuTool, makeReservationTool],
+      tools: tools,
+      returnToolRequests: true, // agent loop will call the tools
       config: {
         temperature: 0.25,
       },
-      streamingCallback: (chunk: any) => {
+      streamingCallback: (chunk) => {
         if (buffer) {
           buffer.push(chunk);
         }
@@ -157,16 +162,15 @@ const restaurantBotFlow = defineFirebaseAgent(
       // Wait for any remaining chunks to get streamed out before resolving the flow
       await buffer.end();
     }
-    return modelResponse.candidates[0].message.content;
-  },
-);
 
-// These need to be moved into the UI somewhere
+    return modelResponse.candidates[0].message;
+  }
+);
 
 export async function streamAgentFlow(
   userId: string,
   sessionId: string,
-  prompt: string,
+  prompt: string
 ) {
   return streamFlow(restaurantBotFlow, {
     userId: userId,
@@ -178,39 +182,6 @@ export async function streamAgentFlow(
   });
 }
 
-const simpleFlow = defineFlow(
-  {
-    name: "agentFlow",
-    inputSchema: z.string(),
-    outputSchema: z.string(),
-    streamSchema: z.string(),
-  },
-  async (
-    prompt: string,
-    streamingCallback: StreamingCallback<string> | undefined,
-  ) => {
-    const llmResponse = await generate({
-      prompt: prompt,
-      model: gemini15Pro,
-      config: {
-        temperature: 1,
-      },
-      streamingCallback: (chunk: { text: () => any }) => {
-        console.log(`Chunk: ${JSON.stringify(chunk)}`);
-        if (streamingCallback) {
-          streamingCallback(chunk.text());
-        }
-      },
-    });
-
-    return llmResponse.text();
-  },
-);
-
-export async function streamSimpleFlow(prompt: string) {
-  return streamFlow(simpleFlow, prompt);
-}
-
 class StreamBuffer {
   private callback: StreamingCallback<GenerateResponseChunkData>;
   private buffer: Array<string>;
@@ -220,7 +191,7 @@ class StreamBuffer {
 
   constructor(
     callback: StreamingCallback<GenerateResponseChunkData>,
-    chunkSize: number = 1,
+    chunkSize: number = 1
   ) {
     this.callback = callback;
     this.buffer = [];
@@ -231,6 +202,8 @@ class StreamBuffer {
   }
 
   // Add a new chunk
+  // Chunk text is added to the buffer
+  // Data and media is ignored
 
   push(chunk: GenerateResponseChunkData) {
     const message = new Message({ role: "model", content: chunk.content });

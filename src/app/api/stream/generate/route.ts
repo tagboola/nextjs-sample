@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { StreamingResponse } from "../StreamingResponse";
 import { makeStream } from "../makeStream";
-import { streamAgentFlow, streamSimpleFlow } from "../../../genkit";
+import { streamAgentFlow } from "../../../genkit";
 import { GenerateResponseChunkData } from "@genkit-ai/ai/model";
 import { Message } from "@genkit-ai/ai";
 

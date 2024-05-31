@@ -4,7 +4,7 @@ import {
   GenerateResponseChunkData,
   GenerateResponseChunkSchema,
   MessageData,
-  Part,
+  ToolResponsePart,
 } from "@genkit-ai/ai/model";
 import { IndexerArgument, RetrieverArgument } from "@genkit-ai/ai/retriever";
 import { defineFlow, runFlow, streamFlow } from "@genkit-ai/flow";
@@ -17,6 +17,7 @@ import {
   FirebaseAgentMessage,
   FirebaseAgentMessageSchema,
 } from "./types";
+import { resolveTools, ToolArgument } from "@genkit-ai/ai/tool";
 
 // Define a Firebase agent
 // Defines a flow and a model which implement the agent behavior
@@ -27,6 +28,7 @@ export function defineFirebaseAgent(
     indexer: IndexerArgument<typeof FirebaseAgentCustomOptionsSchema>;
     retriever: RetrieverArgument<typeof FirebaseAgentCustomOptionsSchema>;
     preamble?: MessageData[];
+    tools?: ToolArgument[];
   },
   fn: FirebaseAgentFn
 ) {
@@ -58,47 +60,93 @@ export function defineFirebaseAgent(
       );
       // Ensure that the retrieved session is a valid exchange, ending with a model message
       const validSession = makeValidExchange(previousMessages);
+
       // Call the developer's agent function
-      const agentFnResponse: Part[] = await fn(
-        request,
+      const agentFnResponse: MessageData = new Message(
+        await fn(
+          request,
+          {
+            userId: request.userId,
+            sessionId: request.sessionId,
+            messages: validSession,
+          },
+          streamingCallback
+        )
+      ).toJSON();
+
+      // If response content contains tool request,
+      // execute the tools, and call the agentFn again.
+      let toolResponse: MessageData | undefined;
+      let toolFnResponse: MessageData | undefined;
+      if (hasToolRequests(agentFnResponse)) {
+        toolResponse = await executeTools(options.tools || [], agentFnResponse);
+        toolFnResponse = new Message(
+          await fn(
+            {
+              userId: request.userId,
+              sessionId: request.sessionId,
+              message: toolResponse,
+            },
+            {
+              userId: request.userId,
+              sessionId: request.sessionId,
+              messages: validSession.concat(request.message, agentFnResponse),
+            },
+            streamingCallback
+          )
+        ).toJSON();
+      }
+
+      // Add both the user message and the responses to the session using the indexer
+      const indexDocuments = [
         {
-          userId: request.userId,
-          sessionId: request.sessionId,
-          messages: validSession,
+          content: [{ text: new Message(request.message).text() }],
+          metadata: {
+            message: request.message,
+          },
         },
-        streamingCallback
-      );
-      const agentMessageData: MessageData = {
-        role: "model",
-        content: agentFnResponse,
-      };
-      // Add both the user message and the agent response to the session using the indexer
+      ];
+      if (toolResponse && toolFnResponse) {
+        indexDocuments.push({
+          content: [{ text: JSON.stringify(agentFnResponse) }],
+          metadata: {
+            message: agentFnResponse,
+          },
+        });
+        indexDocuments.push({
+          content: [{ text: JSON.stringify(toolResponse) }],
+          metadata: {
+            message: toolResponse,
+          },
+        });
+        indexDocuments.push({
+          content: [{ text: new Message(toolFnResponse).text() }],
+          metadata: {
+            message: toolFnResponse,
+          },
+        });
+      } else {
+        indexDocuments.push({
+          content: [{ text: new Message(agentFnResponse).text() }],
+          metadata: {
+            message: agentFnResponse,
+          },
+        });
+      }
       await index({
         indexer: options.indexer,
         options: {
           userId: request.userId,
           sessionId: request.sessionId,
         },
-        documents: [
-          {
-            content: [{ text: new Message(request.message).text() }],
-            metadata: {
-              message: request.message,
-            },
-          },
-          {
-            content: [{ text: new Message(agentMessageData).text() }],
-            metadata: {
-              message: { role: "model", content: agentFnResponse },
-            },
-          },
-        ],
+        documents: indexDocuments,
       });
+
       // Return the agent's message
       return {
         userId: request.userId,
         sessionId: request.sessionId,
-        message: agentMessageData,
+        message: toolFnResponse || agentFnResponse,
       };
     }
   );
@@ -222,4 +270,43 @@ function makeValidExchange(messages: MessageData[]): MessageData[] {
     pushOkMessage("model");
   }
   return validHistory;
+}
+
+function hasToolRequests(messageData: MessageData): boolean {
+  return messageData.content.filter((part) => !!part.toolRequest).length > 0;
+}
+
+// Takes a message with toolRequests, executes them
+// and returns a message with one or more responses.
+
+export async function executeTools(
+  toolArgs: ToolArgument[],
+  messageData: MessageData
+): Promise<MessageData> {
+  const tools = await resolveTools(toolArgs);
+  const toolCalls = messageData.content.filter((part) => !!part.toolRequest);
+  const toolResponses: ToolResponsePart[] = await Promise.all(
+    toolCalls.map(async (part) => {
+      if (!part.toolRequest) {
+        throw Error("Tool not found");
+      }
+      const tool = tools?.find(
+        (tool) => tool.__action.name === part.toolRequest?.name
+      );
+      if (!tool) {
+        throw Error("Tool not found");
+      }
+      return {
+        toolResponse: {
+          name: part.toolRequest.name,
+          ref: part.toolRequest.ref,
+          output: await tool(part.toolRequest?.input),
+        },
+      };
+    })
+  );
+  return {
+    role: "tool",
+    content: toolResponses,
+  };
 }
