@@ -287,7 +287,7 @@ export const fetchRestaurantDetails = defineTool(
   },
   async ({ name, location }) => {
     sdk.auth(
-      "BEARER 7TXP3yxzCBUPiK7B8IdaVtYEGShVYrzbYiyJYkt7k0jlmVHpfnjSe2aSavmdQ-UpufoUAS4SSVV3ot5xsIdG6Z9dJ82ieA5tT0URS7-dYZD-gh92DJynE_ZnNj5XZnYx"
+      "BEARER <insert-api-key-here>"
     );
     const searchResponse = await sdk.v3_business_search({
       sort_by: "best_match",
