@@ -14,13 +14,13 @@ const YelpBusinessDetailsSchema = z
     alias: z
       .string()
       .describe(
-        "Unique Yelp alias of this business. Can contain unicode characters."
+        "Unique Yelp alias of this business. Can contain unicode characters.",
       ),
     name: z.string().describe("Name of the business"),
     rating: z
       .number()
       .describe(
-        "Rating for this business (value ranges from 1, 1.5, ... 4.5, 5)"
+        "Rating for this business (value ranges from 1, 1.5, ... 4.5, 5)",
       )
       .optional(),
     categories: z
@@ -29,13 +29,13 @@ const YelpBusinessDetailsSchema = z
           alias: z
             .string()
             .describe(
-              "Alias of a category, when searching for business in certain categories, use alias rather than the title"
+              "Alias of a category, when searching for business in certain categories, use alias rather than the title",
             ),
           title: z.string().describe("Title of a category for display purpose"),
-        })
+        }),
       )
       .describe(
-        "List of category title and alias pairs associated with this business"
+        "List of category title and alias pairs associated with this business",
       )
       .optional(),
     attributes: z
@@ -57,8 +57,8 @@ const YelpBusinessDetailsSchema = z
             z
               .string()
               .describe(
-                "The available open reservation time. This is of the format HH:MM and is in a 24-hour clock."
-              )
+                "The available open reservation time. This is of the format HH:MM and is in a 24-hour clock.",
+              ),
           )
           .describe("A list of additional reservation opening times"),
       })
@@ -75,7 +75,7 @@ const YelpBusinessSearchParametersScehma = z.object({
   location: z
     .string()
     .describe(
-      `Your location. This string indicates the geographic area to be used when searching for businesses. Examples: "New York City", "NYC", "350 5th Ave, New York, NY 10118"`
+      `Your location. This string indicates the geographic area to be used when searching for businesses. Examples: "New York City", "NYC", "350 5th Ave, New York, NY 10118"`,
     ),
   term: z.string().describe("Your location").optional(),
   categories: z
@@ -83,29 +83,29 @@ const YelpBusinessSearchParametersScehma = z.object({
       z
         .string()
         .describe(
-          "Category alias. Only valid supported category aliases can be provided."
-        )
+          "Category alias. Only valid supported category aliases can be provided.",
+        ),
     )
     .describe(
-      "Categories to filter the search results with. The category alias should be used."
+      "Categories to filter the search results with. The category alias should be used.",
     )
     .optional(),
   reservationTime: z
     .string()
     .describe(
-      "The time of the requested reservation, format is HH:MM. This must be included if you are searching for businesses that support reservations"
+      "The time of the requested reservation, format is HH:MM. This must be included if you are searching for businesses that support reservations",
     )
     .optional(),
   reservationDate: z
     .string()
     .describe(
-      "The date for the reservation, format is YYYY-mm-dd. This must be included if you are searching for businesses that support reservations"
+      "The date for the reservation, format is YYYY-mm-dd. This must be included if you are searching for businesses that support reservations",
     )
     .optional(),
   reservationCovers: z
     .number()
     .describe(
-      "How many people are attending the reservation (min. value is 1; max value is 10). This must be included if you are searching for businesses that support reservations."
+      "How many people are attending the reservation (min. value is 1; max value is 10). This must be included if you are searching for businesses that support reservations.",
     )
     .optional(),
 });
@@ -130,7 +130,7 @@ export const yelpCategoriesTool = defineTool(
     const json = await response.json();
     console.log(json);
     return YelpCategoriesSchema.parse(json);
-  }
+  },
 );
 
 export const yelpBusinessSearchTool = defineTool(
@@ -183,7 +183,7 @@ export const yelpBusinessSearchTool = defineTool(
     const response = await sdk.v3_business_search(params);
 
     return YelpListOfBusinessDetailsSchema.parse(response.data);
-  }
+  },
 );
 
 const fetchDeliveryOptions = defineTool(
@@ -195,29 +195,29 @@ const fetchDeliveryOptions = defineTool(
       location: z
         .string()
         .describe(
-          `Your location. This string indicates the geographic area to be used when searching for businesses. Examples: "New York City", "NYC", "350 5th Ave, New York, NY 10118". Businesses returned in the response may not be strictly within the specified location.`
+          `Your location. This string indicates the geographic area to be used when searching for businesses. Examples: "New York City", "NYC", "350 5th Ave, New York, NY 10118". Businesses returned in the response may not be strictly within the specified location.`,
         ),
       categories: z
         .array(
           z
             .string()
             .describe(
-              "Category alias to filter the businesses by such as cuisine type"
-            )
+              "Category alias to filter the businesses by such as cuisine type",
+            ),
         )
         .describe(
-          "List of categories to filter the businesses by such as cuisine type"
+          "List of categories to filter the businesses by such as cuisine type",
         )
         .optional(),
     }),
     outputSchema: z
       .array(
         YelpBusinessDetailsSchema.describe(
-          "JSON object representing a businesses that can deliver food to you"
-        )
+          "JSON object representing a businesses that can deliver food to you",
+        ),
       )
       .describe(
-        'List of JSON objects representing businesses that can deliver food to you"'
+        'List of JSON objects representing businesses that can deliver food to you"',
       )
       .nullable(),
   },
@@ -231,9 +231,9 @@ const fetchDeliveryOptions = defineTool(
     const data = response.data as any;
 
     return data.businesses.map((business: any) =>
-      YelpBusinessDetailsSchema.parse(business)
+      YelpBusinessDetailsSchema.parse(business),
     );
-  }
+  },
 );
 
 export const fetchRestaurants = defineTool(
@@ -247,7 +247,7 @@ export const fetchRestaurants = defineTool(
     outputSchema: z
       .string()
       .describe(
-        "Text contents from the restaurant's menu on their website. The menu items can be extracted from text."
+        "Text contents from the restaurant's menu on their website. The menu items can be extracted from text.",
       ),
   },
   async ({ name, location }) => {
@@ -269,7 +269,7 @@ export const fetchRestaurants = defineTool(
     console.log(detailsResponse.data);
     const detailsResponseData = detailsResponse.data as any;
     return detailsResponseData.attributes?.menu_url;
-  }
+  },
 );
 
 export const fetchRestaurantDetails = defineTool(
@@ -286,9 +286,7 @@ export const fetchRestaurantDetails = defineTool(
       .describe("A URL to the restaurant's menu on their website"),
   },
   async ({ name, location }) => {
-    sdk.auth(
-      "BEARER <insert-api-key-here>"
-    );
+    sdk.auth("BEARER <insert-api-key-here>");
     const searchResponse = await sdk.v3_business_search({
       sort_by: "best_match",
       limit: 1,
@@ -307,5 +305,5 @@ export const fetchRestaurantDetails = defineTool(
     console.log(detailsResponse.data);
     const detailsResponseData = detailsResponse.data as any;
     return detailsResponseData.attributes?.menu_url;
-  }
+  },
 );
