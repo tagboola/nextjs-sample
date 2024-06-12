@@ -18,6 +18,10 @@ import {
   firebaseAgent,
 } from "./agent";
 import { googleCloud } from "@genkit-ai/google-cloud";
+import {
+  yelpBusinessSearchTool,
+  yelpCategoriesTool,
+} from "./genkit-yelp-tools";
 
 configureGenkit({
   plugins: [
@@ -57,7 +61,7 @@ const readMenuTool = defineTool(
     return {
       menuItems: ["Cheeseburger", "Fries"],
     };
-  }
+  },
 );
 
 const makeReservationTool = defineTool(
@@ -79,7 +83,7 @@ const makeReservationTool = defineTool(
       reserved: z
         .boolean()
         .describe(
-          "True if a table was reserved, or false if nothing was available"
+          "True if a table was reserved, or false if nothing was available",
         ),
       details: z
         .string()
@@ -89,13 +93,13 @@ const makeReservationTool = defineTool(
   async (input: { customerName: any; restaurant: any }) => {
     // Implement the tool...
     console.log(
-      `Making a reservation for ${input.customerName} at ${input.restaurant}`
+      `Making a reservation for ${input.customerName} at ${input.restaurant}`,
     );
     return {
       reserved: false,
       details: "Busy signal",
     };
-  }
+  },
 );
 
 const restaurantBotPreamblePrompt: MessageData[] = [
@@ -120,7 +124,7 @@ const restaurantBotPreamblePrompt: MessageData[] = [
   },
 ];
 
-const tools = [readMenuTool, makeReservationTool];
+const tools = [yelpBusinessSearchTool, yelpCategoriesTool, makeReservationTool];
 
 const memory = defineFirestoreAgentMemory({
   name: "restaurantBotMemory",
@@ -164,13 +168,13 @@ const restaurantBotFlow = defineFirebaseAgent(
     }
 
     return modelResponse.candidates[0].message;
-  }
+  },
 );
 
 export async function streamAgentFlow(
   userId: string,
   sessionId: string,
-  prompt: string
+  prompt: string,
 ) {
   return streamFlow(restaurantBotFlow, {
     userId: userId,
@@ -191,7 +195,7 @@ class StreamBuffer {
 
   constructor(
     callback: StreamingCallback<GenerateResponseChunkData>,
-    chunkSize: number = 1
+    chunkSize: number = 1,
   ) {
     this.callback = callback;
     this.buffer = [];
