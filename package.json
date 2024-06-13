@@ -3,7 +3,8 @@
   "scripts": {
     "start": "next start",
     "compile": "tsc",
-    "build": "next build",
+    "build": "npm run build-service-worker && next build",
+    "build-service-worker": "npx esbuild src/lib/firebase/auth-service-worker.js --bundle --outfile=public/auth-service-worker.js",
     "build:clean": "rm -rf ./lib",
     "build:watch": "tsc --watch",
     "dev": "NODE_OPTIONS='--inspect' next dev",
@@ -27,6 +28,7 @@
     "@mui/icons-material": "^5.15.18",
     "@mui/material": "^5.15.18",
     "express": "^4.19.2",
+    "firebase": "^10.12.2",
     "genkit": "^0.5.0",
     "nanoid": "^5.0.7",
     "next": "14.1.4",

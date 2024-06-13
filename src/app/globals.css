@@ -46,6 +46,12 @@ body {
   position: fixed;
 }
 
+.profileImage {
+  border-radius: 50%;
+  height: 40px;
+  width: 40px;
+}
+
 main {
   padding: 64px 0 0;
   display: flex;
