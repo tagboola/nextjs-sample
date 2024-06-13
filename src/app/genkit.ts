@@ -22,6 +22,8 @@ import {
   yelpBusinessSearchTool,
   yelpCategoriesTool,
 } from "./genkit-yelp-tools";
+import { getRemoteConfig } from "firebase-admin/remote-config";
+import { initializeApp } from "firebase-admin/app";
 
 diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
 
@@ -158,8 +160,23 @@ const restaurantBotFlow = defineFirebaseAgent(
     tools: tools,
   },
   async (request, session, streamingCallback) => {
+    console.log("initializing firebase app...");
+    const firebaseApp = initializeApp();
+
+    console.log("initializing server-side Remote Config...");
+    const rc = getRemoteConfig();
+
+    console.log("initializing server template...");
+    const template = await rc.getServerTemplate({
+      defaultConfig: {
+        streaming_chunk_size: 3,
+      },
+    });
+    const config = template.evaluate();
+    const chunkSize = config.getNumber("streaming_chunk_size");
+
     const buffer: StreamBuffer | undefined = streamingCallback
-      ? new StreamBuffer(streamingCallback, 3)
+      ? new StreamBuffer(streamingCallback, chunkSize)
       : undefined;
 
     const modelResponse = await generate({
