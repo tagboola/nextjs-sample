@@ -3,7 +3,7 @@
 import { Message, defineTool, generate } from "@genkit-ai/ai";
 import { GenerateResponseChunkData, MessageData } from "@genkit-ai/ai/model";
 import { StreamingCallback, configureGenkit } from "@genkit-ai/core";
-import { defineFlow, streamFlow } from "@genkit-ai/flow";
+import { streamFlow } from "@genkit-ai/flow";
 import {
   gemini15Pro,
   googleAI,
@@ -170,7 +170,7 @@ const restaurantBotFlow = defineFirebaseAgent(
     return modelResponse.candidates[0].message;
   },
 );
-
+  
 export async function streamAgentFlow(
   userId: string,
   sessionId: string,
