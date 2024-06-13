@@ -1,4 +1,6 @@
 import { index, Message, retrieve } from "@genkit-ai/ai";
+import {firebaseAuth} from "@genkit-ai/firebase/auth";
+
 import {
   defineModel,
   GenerateResponseChunkData,
@@ -40,6 +42,15 @@ export function defineFirebaseAgent(
       inputSchema: FirebaseAgentMessageSchema,
       outputSchema: FirebaseAgentMessageSchema,
       streamSchema: GenerateResponseChunkSchema,
+      authPolicy: (auth, input) => {
+        if (!auth) {
+          throw new Error('Authorization required.');
+        }
+        if (input.userId !== auth.uid) {
+          throw new Error('You may only access your own messages');
+        }
+      }
+
     },
     async (
       request: FirebaseAgentMessage,

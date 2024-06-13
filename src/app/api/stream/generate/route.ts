@@ -4,6 +4,7 @@ import { makeStream } from "../makeStream";
 import { streamAgentFlow } from "../../../genkit";
 import { GenerateResponseChunkData } from "@genkit-ai/ai/model";
 import { Message } from "@genkit-ai/ai";
+import { useState } from "react";
 
 // Generate a stream of data by returning an [AsyncGenerator]
 async function* generateStreamFromPrompt(
@@ -30,7 +31,9 @@ async function* generateStreamFromPrompt(
 // Route handler for `/api/stream/generate`. Returns a [StreamingResponse]
 export async function GET(req: NextRequest) {
   const prompt = req.nextUrl.searchParams.get("prompt");
-  const userId = "user001";
+
+  const userId = req.nextUrl.searchParams.get("userUid") || "NO_ID";
+
   const sessionId = req.nextUrl.searchParams.get("sessionId");
 
   if (!prompt) {

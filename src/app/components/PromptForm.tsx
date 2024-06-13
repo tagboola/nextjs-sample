@@ -95,8 +95,10 @@ async function generateResponse(
   incompleteMessage: Message,
   setMessages: (value: Message[]) => void
 ) {
+  const userId = localStorage.getItem('userUid') || "none"
+
   const response = await fetch(
-    `/api/stream/generate?sessionId=${sessionId}&prompt=${encodeURIComponent(
+    `/api/stream/generate?userUid=${userId}&sessionId=${sessionId}&prompt=${encodeURIComponent(
       prompt
     )}`
   );
