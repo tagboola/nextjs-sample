@@ -9,7 +9,7 @@ import {
   ToolResponsePart,
 } from "@genkit-ai/ai/model";
 import { IndexerArgument, RetrieverArgument } from "@genkit-ai/ai/retriever";
-import { defineFlow, runFlow, streamFlow } from "@genkit-ai/flow";
+import { defineFlow, Flow, runFlow, streamFlow } from "@genkit-ai/flow";
 
 import {
   FirebaseAgentConfigSchema,
@@ -32,8 +32,12 @@ export function defineFirebaseAgent(
     preamble?: MessageData[];
     tools?: ToolArgument[];
   },
-  fn: FirebaseAgentFn
-) {
+  fn: FirebaseAgentFn,
+): Flow<
+  typeof FirebaseAgentMessageSchema,
+  typeof FirebaseAgentMessageSchema,
+  typeof GenerateResponseChunkSchema
+> {
   const registryKey = `firebase-agent/${options.name}`;
 
   const flowAction = defineFlow(
@@ -54,7 +58,7 @@ export function defineFirebaseAgent(
     },
     async (
       request: FirebaseAgentMessage,
-      streamingCallback
+      streamingCallback,
     ): Promise<FirebaseAgentMessage> => {
       // Some set of previous messages will be fetched according to the retriever's logic
       const documents = await retrieve({
@@ -67,7 +71,7 @@ export function defineFirebaseAgent(
       });
       // The retrieved messages are appended to the preamble
       const previousMessages: MessageData[] = (options.preamble || []).concat(
-        documents.map((doc) => doc.metadata?.message as MessageData)
+        documents.map((doc) => doc.metadata?.message as MessageData),
       );
       // Ensure that the retrieved session is a valid exchange, ending with a model message
       const validSession = makeValidExchange(previousMessages);
@@ -81,8 +85,8 @@ export function defineFirebaseAgent(
             sessionId: request.sessionId,
             messages: validSession,
           },
-          streamingCallback
-        )
+          streamingCallback,
+        ),
       ).toJSON();
 
       // If response content contains tool request,
@@ -103,8 +107,8 @@ export function defineFirebaseAgent(
               sessionId: request.sessionId,
               messages: validSession.concat(request.message, agentFnResponse),
             },
-            streamingCallback
-          )
+            streamingCallback,
+          ),
         ).toJSON();
       }
 
@@ -159,7 +163,7 @@ export function defineFirebaseAgent(
         sessionId: request.sessionId,
         message: toolFnResponse || agentFnResponse,
       };
-    }
+    },
   );
 
   const modelAction = defineModel(
@@ -186,7 +190,7 @@ export function defineFirebaseAgent(
         const systemMessage = request.messages[0];
         if (systemMessage.role === "system") {
           const customParams = JSON.parse(
-            systemMessage.content[0].text || ""
+            systemMessage.content[0].text || "",
           ) as FirebaseAgentCustomOptions;
           userId = customParams.userId;
           sessionId = customParams.sessionId;
@@ -194,7 +198,7 @@ export function defineFirebaseAgent(
       }
       if (userId === undefined || sessionId === undefined) {
         throw new Error(
-          "The userId and sessionId missing. Add them to the system prompt."
+          "The userId and sessionId missing. Add them to the system prompt.",
         );
       }
       const flowInput: FirebaseAgentMessage = {
@@ -235,7 +239,7 @@ export function defineFirebaseAgent(
           },
         ],
       };
-    }
+    },
   );
 
   return flowAction;
@@ -266,6 +270,9 @@ function makeValidExchange(messages: MessageData[]): MessageData[] {
     } else if (prevRole === "tool" && nextRole === "user") {
       pushOkMessage("model");
       validHistory.push(next);
+    } else if (prevRole === "user" && nextRole === "tool") {
+      pushOkMessage("model");
+      validHistory.push(next);
     } else if (prevRole === "system" && nextRole === "model") {
       pushOkMessage("user");
       validHistory.push(next);
@@ -292,7 +299,7 @@ function hasToolRequests(messageData: MessageData): boolean {
 
 export async function executeTools(
   toolArgs: ToolArgument[],
-  messageData: MessageData
+  messageData: MessageData,
 ): Promise<MessageData> {
   const tools = await resolveTools(toolArgs);
   const toolCalls = messageData.content.filter((part) => !!part.toolRequest);
@@ -302,7 +309,7 @@ export async function executeTools(
         throw Error("Tool not found");
       }
       const tool = tools?.find(
-        (tool) => tool.__action.name === part.toolRequest?.name
+        (tool) => tool.__action.name === part.toolRequest?.name,
       );
       if (!tool) {
         throw Error("Tool not found");
@@ -314,7 +321,7 @@ export async function executeTools(
           output: await tool(part.toolRequest?.input),
         },
       };
-    })
+    }),
   );
   return {
     role: "tool",

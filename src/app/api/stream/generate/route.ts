@@ -10,7 +10,7 @@ import { useState } from "react";
 async function* generateStreamFromPrompt(
   userId: string,
   sessionId: string,
-  prompt: string
+  prompt: string,
 ): AsyncGenerator<string, any, unknown> {
   const response = await streamAgentFlow(userId, sessionId, prompt);
 
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
   }
 
   const stream = await makeStream(
-    generateStreamFromPrompt(userId, sessionId, prompt)
+    generateStreamFromPrompt(userId, sessionId, prompt),
   );
   const response = new StreamingResponse(stream);
   return response;

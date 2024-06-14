@@ -1,30 +1,45 @@
 "use server";
-
 import { Message, defineTool, generate } from "@genkit-ai/ai";
 import { GenerateResponseChunkData, MessageData } from "@genkit-ai/ai/model";
 import { StreamingCallback, configureGenkit } from "@genkit-ai/core";
 import { streamFlow } from "@genkit-ai/flow";
+import { firebase } from "@genkit-ai/firebase";
+import { googleCloud } from "@genkit-ai/google-cloud";
 import {
-  gemini15Pro,
+  gemini15Flash,
   googleAI,
   textEmbeddingGecko001,
 } from "@genkit-ai/googleai";
-import { firebase } from "@genkit-ai/firebase";
+import { DiagConsoleLogger, DiagLogLevel, diag } from "@opentelemetry/api";
+import { AlwaysOnSampler } from "@opentelemetry/sdk-trace-base";
 import * as z from "zod";
 import {
   defineFirebaseAgent,
   defineFirestoreAgentMemory,
-  executeTools,
   firebaseAgent,
 } from "./agent";
-import { googleCloud } from "@genkit-ai/google-cloud";
+
+diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
 
 configureGenkit({
   plugins: [
     googleAI({ apiVersion: ["v1beta", "v1"] }),
     firebase(),
     firebaseAgent(),
-    googleCloud(),
+    googleCloud({
+      // Forces telemetry export in 'dev'
+      forceDevExport: true,
+      // These are configured for demonstration purposes. Sensible defaults are
+      // in place in the event that telemetryConfig is absent.
+      telemetryConfig: {
+        sampler: new AlwaysOnSampler(),
+        autoInstrumentation: true,
+        autoInstrumentationConfig: {
+          "@opentelemetry/instrumentation-fs": { enabled: false },
+          "@opentelemetry/instrumentation-dns": { enabled: false },
+        },
+      },
+    }),
   ],
   logLevel: "info",
   enableTracingAndMetrics: true,
@@ -57,7 +72,7 @@ const readMenuTool = defineTool(
     return {
       menuItems: ["Cheeseburger", "Fries"],
     };
-  }
+  },
 );
 
 const makeReservationTool = defineTool(
@@ -79,7 +94,7 @@ const makeReservationTool = defineTool(
       reserved: z
         .boolean()
         .describe(
-          "True if a table was reserved, or false if nothing was available"
+          "True if a table was reserved, or false if nothing was available",
         ),
       details: z
         .string()
@@ -89,13 +104,13 @@ const makeReservationTool = defineTool(
   async (input: { customerName: any; restaurant: any }) => {
     // Implement the tool...
     console.log(
-      `Making a reservation for ${input.customerName} at ${input.restaurant}`
+      `Making a reservation for ${input.customerName} at ${input.restaurant}`,
     );
     return {
       reserved: false,
       details: "Busy signal",
     };
-  }
+  },
 );
 
 const restaurantBotPreamblePrompt: MessageData[] = [
@@ -144,7 +159,7 @@ const restaurantBotFlow = defineFirebaseAgent(
       : undefined;
 
     const modelResponse = await generate({
-      model: gemini15Pro,
+      model: gemini15Flash,
       prompt: request.message.content,
       history: session.messages,
       tools: tools,
@@ -164,13 +179,13 @@ const restaurantBotFlow = defineFirebaseAgent(
     }
 
     return modelResponse.candidates[0].message;
-  }
+  },
 );
-  
+
 export async function streamAgentFlow(
   userId: string,
   sessionId: string,
-  prompt: string
+  prompt: string,
 ) {
   return streamFlow(restaurantBotFlow, {
     userId: userId,
@@ -191,7 +206,7 @@ class StreamBuffer {
 
   constructor(
     callback: StreamingCallback<GenerateResponseChunkData>,
-    chunkSize: number = 1
+    chunkSize: number = 1,
   ) {
     this.callback = callback;
     this.buffer = [];
