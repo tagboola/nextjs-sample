@@ -30,8 +30,8 @@ configureGenkit({
     firebase(),
     firebaseAgent(),
     googleCloud({
-      // Forces telemetry export in 'dev'
-      forceDevExport: true,
+      // set to true to force telemetry export in 'dev'
+      forceDevExport: false,
       // These are configured for demonstration purposes. Sensible defaults are
       // in place in the event that telemetryConfig is absent.
       telemetryConfig: {
