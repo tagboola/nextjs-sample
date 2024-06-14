@@ -18,6 +18,8 @@ import {
   defineFirestoreAgentMemory,
   firebaseAgent,
 } from "./agent";
+import { getRemoteConfig } from "firebase-admin/remote-config";
+import { getApps, initializeApp } from "firebase-admin/app";
 
 diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
 
@@ -48,6 +50,19 @@ configureGenkit({
   telemetry: {
     instrumentation: "googleCloud",
     logger: "googleCloud",
+  },
+});
+
+// Initialize the admin sdk.
+// Do this to prevent initializing the app multiple times which results in an error
+const apps = getApps();
+const firebaseApp = apps.length ? apps[0] : initializeApp();
+
+// Initialize remote config
+const rc = getRemoteConfig(firebaseApp);
+const template = rc.initServerTemplate({
+  defaultConfig: {
+    streaming_chunk_size: 3,
   },
 });
 
@@ -154,8 +169,12 @@ const restaurantBotFlow = defineFirebaseAgent(
     tools: tools,
   },
   async (request, session, streamingCallback) => {
+    await template.load();
+    const config = template.evaluate();
+    const chunkSize = config.getNumber("streaming_chunk_size");
+
     const buffer: StreamBuffer | undefined = streamingCallback
-      ? new StreamBuffer(streamingCallback, 3)
+      ? new StreamBuffer(streamingCallback, chunkSize)
       : undefined;
 
     const modelResponse = await generate({
