@@ -10,7 +10,6 @@ import {
   googleAI,
   textEmbeddingGecko001,
 } from "@genkit-ai/googleai";
-import { DiagConsoleLogger, DiagLogLevel, diag } from "@opentelemetry/api";
 import { AlwaysOnSampler } from "@opentelemetry/sdk-trace-base";
 import * as z from "zod";
 import {
@@ -21,7 +20,9 @@ import {
 import { getRemoteConfig } from "firebase-admin/remote-config";
 import { getApps, initializeApp } from "firebase-admin/app";
 
-diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
+// Force inclusion of protos needed for cloud telemtry exporter otherwise,
+// bundling will strip them out, and we won't get traces!
+require("google-proto-files");
 
 configureGenkit({
   plugins: [
@@ -29,8 +30,8 @@ configureGenkit({
     firebase(),
     firebaseAgent(),
     googleCloud({
-      // Forces telemetry export in 'dev'
-      forceDevExport: true,
+      // set to true to force telemetry export in 'dev'
+      forceDevExport: false,
       // These are configured for demonstration purposes. Sensible defaults are
       // in place in the event that telemetryConfig is absent.
       telemetryConfig: {
