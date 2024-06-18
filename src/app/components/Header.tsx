@@ -19,7 +19,6 @@ import {
 } from "firebase/auth";
 
 import { initializeApp, getApps } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -38,7 +37,6 @@ import { getAuth } from "firebase/auth";
 import React, { useEffect, useState } from "react";
 export const firebaseApp =
   getApps().length === 0 ? initializeApp(config) : getApps()[0];
-const analytics = getAnalytics(firebaseApp);
 export const auth = getAuth(firebaseApp);
 
 function useUserSession(initialUser: any) {
