@@ -36,12 +36,12 @@ configureGenkit({
       // in place in the event that telemetryConfig is absent.
       telemetryConfig: {
         sampler: new AlwaysOnSampler(),
-        autoInstrumentation: false,
-        autoInstrumentationConfig: {
-          "@opentelemetry/instrumentation-fs": { enabled: false },
-          "@opentelemetry/instrumentation-dns": { enabled: false },
-          "@opentelemetry/instrumentation-net": { enabled: false },
-        },
+        autoInstrumentation: true,
+        // autoInstrumentationConfig: {
+        //   "@opentelemetry/instrumentation-fs": { enabled: false },
+        //   "@opentelemetry/instrumentation-dns": { enabled: false },
+        //   "@opentelemetry/instrumentation-net": { enabled: false },
+        // },
       },
     }),
   ],
