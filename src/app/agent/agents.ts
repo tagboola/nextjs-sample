@@ -1,5 +1,5 @@
 import { index, Message, retrieve } from "@genkit-ai/ai";
-import {firebaseAuth} from "@genkit-ai/firebase/auth";
+import { firebaseAuth } from "@genkit-ai/firebase/auth";
 
 import {
   defineModel,
@@ -48,13 +48,12 @@ export function defineFirebaseAgent(
       streamSchema: GenerateResponseChunkSchema,
       authPolicy: (auth, input) => {
         if (!auth) {
-          throw new Error('Authorization required.');
+          throw new Error("Authorization required.");
         }
         if (input.userId !== auth.uid) {
-          throw new Error('You may only access your own messages');
+          throw new Error("You may only access your own messages");
         }
-      }
-
+      },
     },
     async (
       request: FirebaseAgentMessage,
@@ -226,7 +225,9 @@ export function defineFirebaseAgent(
         resultMessage = flowResult.message;
       } else {
         // No stream
-        const flowResult = await runFlow(flowAction, flowInput);
+        const flowResult = await runFlow(flowAction, flowInput, {
+          withLocalAuthContext: { uid: userId },
+        });
         resultMessage = flowResult.message;
       }
       return {

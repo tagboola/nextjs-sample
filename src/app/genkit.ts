@@ -69,13 +69,14 @@ const firebaseApp = apps.length ? apps[0] : initializeApp();
 
 // Initialize remote config
 const defaultStreamingChunkSize = 3;
-const defaultModel = "gemini15Flash";
+const defaultModelString = "gemini15Flash";
+const defaultModel = parseModel(defaultModelString);
 
 const rc = getRemoteConfig(firebaseApp);
 const template = rc.initServerTemplate({
   defaultConfig: {
     streaming_chunk_size: defaultStreamingChunkSize,
-    model: defaultModel,
+    model: defaultModelString,
   },
 });
 
