@@ -7,6 +7,9 @@ import { firebase } from "@genkit-ai/firebase";
 import { googleCloud } from "@genkit-ai/google-cloud";
 import {
   gemini15Flash,
+  gemini15Pro,
+  geminiPro,
+  geminiProVision,
   googleAI,
   textEmbeddingGecko001,
 } from "@genkit-ai/googleai";
@@ -65,6 +68,7 @@ const rc = getRemoteConfig(firebaseApp);
 const template = rc.initServerTemplate({
   defaultConfig: {
     streaming_chunk_size: 3,
+    model: "gemini15Flash",
   },
 });
 
@@ -158,57 +162,84 @@ const memory = defineFirestoreAgentMemory({
   name: "restaurantBotMemory",
 });
 
-const restaurantBotFlow = defineFirebaseAgent(
-  {
-    name: "restaurantBot",
-    indexer: memory.defineVectorIndexer({ embedder: textEmbeddingGecko001 }),
-    retriever: memory.defineRecentAndSimilarHistoryRetriever({
-      embedder: textEmbeddingGecko001,
-      recentLimit: 4,
-      similarLimit: 6,
-    }),
-    preamble: restaurantBotPreamblePrompt,
-    tools: tools,
-  },
-  async (request, session, streamingCallback) => {
-    await template.load();
-    const config = template.evaluate();
-    const chunkSize = config.getNumber("streaming_chunk_size");
+async function defineRestaurantBotFlow() {
+  const config = await getConfig();
+  const modelString = config.getString("model");
+  const model = parseModel(modelString);
 
-    const buffer: StreamBuffer | undefined = streamingCallback
-      ? new StreamBuffer(streamingCallback, chunkSize)
-      : undefined;
-
-    const modelResponse = await generate({
-      model: gemini15Flash,
-      prompt: request.message.content,
-      history: session.messages,
+  return defineFirebaseAgent(
+    {
+      name: "restaurantBot",
+      indexer: memory.defineVectorIndexer({ embedder: textEmbeddingGecko001 }),
+      retriever: memory.defineRecentAndSimilarHistoryRetriever({
+        embedder: textEmbeddingGecko001,
+        recentLimit: 4,
+        similarLimit: 6,
+      }),
+      preamble: restaurantBotPreamblePrompt,
       tools: tools,
-      returnToolRequests: true, // agent loop will call the tools
-      config: {
-        temperature: 0.25,
-      },
-      streamingCallback: (chunk) => {
-        if (buffer) {
-          buffer.push(chunk);
-        }
-      },
-    });
-    if (buffer) {
-      // Wait for any remaining chunks to get streamed out before resolving the flow
-      await buffer.end();
-    }
+    },
+    async (request, session, streamingCallback) => {
+      const config = await getConfig();
+      const chunkSize = config.getNumber("streaming_chunk_size");
 
-    return modelResponse.candidates[0].message;
-  },
-);
+      const buffer: StreamBuffer | undefined = streamingCallback
+        ? new StreamBuffer(streamingCallback, chunkSize)
+        : undefined;
+
+      const modelResponse = await generate({
+        model: model,
+        prompt: request.message.content,
+        history: session.messages,
+        tools: tools,
+        returnToolRequests: true, // agent loop will call the tools
+        config: {
+          temperature: 0.25,
+        },
+        streamingCallback: (chunk) => {
+          if (buffer) {
+            buffer.push(chunk);
+          }
+        },
+      });
+      if (buffer) {
+        // Wait for any remaining chunks to get streamed out before resolving the flow
+        await buffer.end();
+      }
+
+      return modelResponse.candidates[0].message;
+    },
+  );
+}
+
+async function getConfig() {
+  await template.load();
+  return template.evaluate();
+}
+
+function parseModel(modelString: string) {
+  switch (modelString) {
+    case "gemini15Pro": {
+      return gemini15Pro;
+    }
+    case "geminiPro": {
+      return geminiPro;
+    }
+    case "geminiProVision": {
+      return geminiProVision;
+    }
+    default: {
+      return gemini15Flash;
+    }
+  }
+}
 
 export async function streamAgentFlow(
   userId: string,
   sessionId: string,
   prompt: string,
 ) {
-  return streamFlow(restaurantBotFlow, {
+  return streamFlow(await defineRestaurantBotFlow(), {
     userId: userId,
     sessionId: sessionId,
     message: {
