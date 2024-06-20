@@ -1,6 +1,10 @@
 "use server";
 import { Message, defineTool, generate } from "@genkit-ai/ai";
-import { GenerateResponseChunkData, MessageData } from "@genkit-ai/ai/model";
+import {
+  GenerateResponseChunkData,
+  MessageData,
+  ModelArgument,
+} from "@genkit-ai/ai/model";
 import { StreamingCallback, configureGenkit } from "@genkit-ai/core";
 import { streamFlow } from "@genkit-ai/flow";
 import { firebase } from "@genkit-ai/firebase";
@@ -64,11 +68,14 @@ const apps = getApps();
 const firebaseApp = apps.length ? apps[0] : initializeApp();
 
 // Initialize remote config
+const defaultStreamingChunkSize = 3;
+const defaultModel = "gemini15Flash";
+
 const rc = getRemoteConfig(firebaseApp);
 const template = rc.initServerTemplate({
   defaultConfig: {
-    streaming_chunk_size: 3,
-    model: "gemini15Flash",
+    streaming_chunk_size: defaultStreamingChunkSize,
+    model: defaultModel,
   },
 });
 
@@ -162,11 +169,15 @@ const memory = defineFirestoreAgentMemory({
   name: "restaurantBotMemory",
 });
 
-async function defineRestaurantBotFlow() {
+async function defineProdRestaurantBotFlow() {
   const config = await getConfig();
   const modelString = config.getString("model");
   const model = parseModel(modelString);
+  const chunkSize = config.getNumber("streaming_chunk_size");
+  return defineRestaurantBotFlow(model, chunkSize);
+}
 
+function defineRestaurantBotFlow(model: ModelArgument, chunkSize: number) {
   return defineFirebaseAgent(
     {
       name: "restaurantBot",
@@ -180,9 +191,6 @@ async function defineRestaurantBotFlow() {
       tools: tools,
     },
     async (request, session, streamingCallback) => {
-      const config = await getConfig();
-      const chunkSize = config.getNumber("streaming_chunk_size");
-
       const buffer: StreamBuffer | undefined = streamingCallback
         ? new StreamBuffer(streamingCallback, chunkSize)
         : undefined;
@@ -212,6 +220,11 @@ async function defineRestaurantBotFlow() {
   );
 }
 
+const restaurantBotFlow = defineRestaurantBotFlow(
+  defaultModel,
+  defaultStreamingChunkSize,
+);
+
 async function getConfig() {
   await template.load();
   return template.evaluate();
@@ -239,7 +252,7 @@ export async function streamAgentFlow(
   sessionId: string,
   prompt: string,
 ) {
-  return streamFlow(await defineRestaurantBotFlow(), {
+  return streamFlow(await defineProdRestaurantBotFlow(), {
     userId: userId,
     sessionId: sessionId,
     message: {
