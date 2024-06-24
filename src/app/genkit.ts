@@ -26,10 +26,14 @@ import {
 } from "./agent";
 import { getRemoteConfig } from "firebase-admin/remote-config";
 import { getApps, initializeApp } from "firebase-admin/app";
+import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
 
 // Force inclusion of protos needed for cloud telemtry exporter otherwise,
 // bundling will strip them out, and we won't get traces!
 require("google-proto-files");
+
+// debug open telemtry issues
+diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
 
 configureGenkit({
   plugins: [
