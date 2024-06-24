@@ -2,6 +2,7 @@
 const nextConfig = {
     experimental: {
         serverComponentsExternalPackages: ['google-proto-files'],
+        instrumentationHook: true,
     },
 }
 
