@@ -20,8 +20,12 @@ import {
   defineFirestoreAgentMemory,
   firebaseAgent,
 } from "./agent";
-import { getRemoteConfig } from "firebase-admin/remote-config";
-import { initializeApp } from "firebase-admin/app";
+import {
+  ServerConfig,
+  ServerTemplate,
+  getRemoteConfig,
+} from "firebase-admin/remote-config";
+import { getApp, initializeApp } from "firebase-admin/app";
 import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
 import {
   readMenuTool,
@@ -36,10 +40,14 @@ require("google-proto-files");
 // debug open telemetry issues
 // diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
 
-const firebaseApp = initializeApp(
-  { projectId: "nextjs-test-project-27ca7" },
-  "nextjs-test-project",
-);
+// Don't re-initalize on hot reloads
+
+const firebaseApp =
+  getApp("nextjs-test-project") ||
+  initializeApp(
+    { projectId: "nextjs-test-project-27ca7" },
+    "nextjs-test-project",
+  );
 
 configureGenkit({
   plugins: [
@@ -81,7 +89,6 @@ const template = rc.initServerTemplate({
     menu_tool: "stable",
   },
 });
-template.load();
 
 // Restaurant bot
 
@@ -125,11 +132,17 @@ const restaurantBotFlow = defineFirebaseAgent(
     preamble: restaurantBotPreamblePrompt,
     tools: tools,
   },
+
   async (request, session, streamingCallback) => {
     // Evaluate the remote config template for the request
-    const config = template.evaluate({
-      randomizationId: request.sessionId,
-    });
+    let config: ServerConfig;
+    try {
+      config = template.evaluate({ randomizationId: request.sessionId });
+    } catch (e) {
+      // Unfortunately FirebaseRemoteConfigError isn't exported
+      await template.load();
+      config = template.evaluate({ randomizationId: request.sessionId });
+    }
     const model = parseModel(config.getString("model"));
     const chunkSize = config.getNumber("streaming_chunk_size");
     const menuTool = config.getString("menu_tool");
