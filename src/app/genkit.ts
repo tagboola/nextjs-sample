@@ -1,11 +1,8 @@
 "use server";
-import { Message, defineTool, generate } from "@genkit-ai/ai";
-import {
-  GenerateResponseChunkData,
-  MessageData,
-  ModelArgument,
-} from "@genkit-ai/ai/model";
+import { Message, generate } from "@genkit-ai/ai";
+import { GenerateResponseChunkData, MessageData } from "@genkit-ai/ai/model";
 import { StreamingCallback, configureGenkit } from "@genkit-ai/core";
+import { setCustomMetadataAttribute } from "@genkit-ai/core/tracing";
 import { streamFlow } from "@genkit-ai/flow";
 import { firebase } from "@genkit-ai/firebase";
 import { googleCloud } from "@genkit-ai/google-cloud";
@@ -18,22 +15,31 @@ import {
   textEmbeddingGecko001,
 } from "@genkit-ai/googleai";
 import { AlwaysOnSampler } from "@opentelemetry/sdk-trace-base";
-import * as z from "zod";
 import {
   defineFirebaseAgent,
   defineFirestoreAgentMemory,
   firebaseAgent,
 } from "./agent";
 import { getRemoteConfig } from "firebase-admin/remote-config";
-import { getApps, initializeApp } from "firebase-admin/app";
+import { initializeApp } from "firebase-admin/app";
 import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
+import {
+  readMenuTool,
+  flakyMenuTool,
+  makeReservationTool,
+} from "./genkit-tools";
 
 // Force inclusion of protos needed for cloud telemtry exporter otherwise,
 // bundling will strip them out, and we won't get traces!
 require("google-proto-files");
 
-// debug open telemtry issues
-diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
+// debug open telemetry issues
+// diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
+
+const firebaseApp = initializeApp(
+  { projectId: "nextjs-test-project-27ca7" },
+  "nextjs-test-project",
+);
 
 configureGenkit({
   plugins: [
@@ -42,7 +48,7 @@ configureGenkit({
     firebaseAgent(),
     googleCloud({
       // set to true to force telemetry export in 'dev'
-      forceDevExport: false,
+      forceDevExport: true,
       // These are configured for demonstration purposes. Sensible defaults are
       // in place in the event that telemetryConfig is absent.
       telemetryConfig: {
@@ -66,85 +72,18 @@ configureGenkit({
   },
 });
 
-// Initialize the admin sdk.
-// Do this to prevent initializing the app multiple times which results in an error
-const apps = getApps();
-const firebaseApp = apps.length ? apps[0] : initializeApp();
-
-// Initialize remote config
-const defaultStreamingChunkSize = 3;
-const defaultModelString = "gemini15Flash";
-const defaultModel = parseModel(defaultModelString);
-
+// Initialize remote config and provide defaults
 const rc = getRemoteConfig(firebaseApp);
 const template = rc.initServerTemplate({
   defaultConfig: {
-    streaming_chunk_size: defaultStreamingChunkSize,
-    model: defaultModelString,
+    streaming_chunk_size: 3,
+    model: "gemini15Flash",
+    menu_tool: "stable",
   },
 });
+template.load();
 
 // Restaurant bot
-
-const readMenuTool = defineTool(
-  {
-    name: "readMenu",
-    description: "Use this tool to see what is on any restaurant menu.",
-    inputSchema: z.object({
-      restaurant: z.string().describe("The name of the restaurant"),
-    }),
-    outputSchema: z.object({
-      menuItems: z
-        .array(z.string().describe("A food item"))
-        .describe("An array of all the items on the menu"),
-    }),
-  },
-  async (input: { restaurant: any }) => {
-    // Implement the tool...
-    console.log(`Reading the menu at ${input.restaurant}`);
-    return {
-      menuItems: ["Cheeseburger", "Fries"],
-    };
-  },
-);
-
-const makeReservationTool = defineTool(
-  {
-    name: "reserveTable",
-    description: `Use this tool to reserve a table at any restaurant. 
-      Make sure that you have all of the information from the customer 
-      before attempting to make a reservation`,
-    inputSchema: z.object({
-      restaurant: z.string().describe("The name of the restaurant"),
-      dateAndTime: z
-        .string()
-        .describe("The desired date and time of the reservation"),
-      customerName: z
-        .string()
-        .describe("The customer name for the reservation"),
-    }),
-    outputSchema: z.object({
-      reserved: z
-        .boolean()
-        .describe(
-          "True if a table was reserved, or false if nothing was available",
-        ),
-      details: z
-        .string()
-        .describe("An explanantion for why the reservation was made or denied"),
-    }),
-  },
-  async (input: { customerName: any; restaurant: any }) => {
-    // Implement the tool...
-    console.log(
-      `Making a reservation for ${input.customerName} at ${input.restaurant}`,
-    );
-    return {
-      reserved: false,
-      details: "Busy signal",
-    };
-  },
-);
 
 const restaurantBotPreamblePrompt: MessageData[] = [
   {
@@ -168,72 +107,66 @@ const restaurantBotPreamblePrompt: MessageData[] = [
   },
 ];
 
-const tools = [readMenuTool, makeReservationTool];
+const tools = [readMenuTool, flakyMenuTool, makeReservationTool];
 
 const memory = defineFirestoreAgentMemory({
   name: "restaurantBotMemory",
 });
 
-async function defineProdRestaurantBotFlow() {
-  const config = await getConfig();
-  const modelString = config.getString("model");
-  const model = parseModel(modelString);
-  const chunkSize = config.getNumber("streaming_chunk_size");
-  return defineRestaurantBotFlow(model, chunkSize);
-}
+const restaurantBotFlow = defineFirebaseAgent(
+  {
+    name: "restaurantBot",
+    indexer: memory.defineVectorIndexer({ embedder: textEmbeddingGecko001 }),
+    retriever: memory.defineRecentAndSimilarHistoryRetriever({
+      embedder: textEmbeddingGecko001,
+      recentLimit: 4,
+      similarLimit: 6,
+    }),
+    preamble: restaurantBotPreamblePrompt,
+    tools: tools,
+  },
+  async (request, session, streamingCallback) => {
+    // Evaluate the remote config template for the request
+    const config = template.evaluate({
+      randomizationId: request.sessionId,
+    });
+    const model = parseModel(config.getString("model"));
+    const chunkSize = config.getNumber("streaming_chunk_size");
+    const menuTool = config.getString("menu_tool");
+    const requestTools =
+      menuTool === "flaky"
+        ? [flakyMenuTool, makeReservationTool]
+        : [readMenuTool, makeReservationTool];
+    setCustomMetadataAttribute("firebase/rc/param/menu_tool", menuTool);
 
-function defineRestaurantBotFlow(model: ModelArgument, chunkSize: number) {
-  return defineFirebaseAgent(
-    {
-      name: "restaurantBot",
-      indexer: memory.defineVectorIndexer({ embedder: textEmbeddingGecko001 }),
-      retriever: memory.defineRecentAndSimilarHistoryRetriever({
-        embedder: textEmbeddingGecko001,
-        recentLimit: 4,
-        similarLimit: 6,
-      }),
-      preamble: restaurantBotPreamblePrompt,
-      tools: tools,
-    },
-    async (request, session, streamingCallback) => {
-      const buffer: StreamBuffer | undefined = streamingCallback
-        ? new StreamBuffer(streamingCallback, chunkSize)
-        : undefined;
+    // Build buffer for streaming
+    const buffer: StreamBuffer | undefined = streamingCallback
+      ? new StreamBuffer(streamingCallback, chunkSize)
+      : undefined;
 
-      const modelResponse = await generate({
-        model: model,
-        prompt: request.message.content,
-        history: session.messages,
-        tools: tools,
-        returnToolRequests: true, // agent loop will call the tools
-        config: {
-          temperature: 0.25,
-        },
-        streamingCallback: (chunk) => {
-          if (buffer) {
-            buffer.push(chunk);
-          }
-        },
-      });
-      if (buffer) {
-        // Wait for any remaining chunks to get streamed out before resolving the flow
-        await buffer.end();
-      }
+    const modelResponse = await generate({
+      model: model,
+      prompt: request.message.content,
+      history: session.messages,
+      tools: requestTools,
+      returnToolRequests: true, // agent loop will call the tools
+      config: {
+        temperature: 0.25,
+      },
+      streamingCallback: (chunk) => {
+        if (buffer) {
+          buffer.push(chunk);
+        }
+      },
+    });
+    if (buffer) {
+      // Wait for any remaining chunks to get streamed out before resolving the flow
+      await buffer.end();
+    }
 
-      return modelResponse.candidates[0].message;
-    },
-  );
-}
-
-const restaurantBotFlow = defineRestaurantBotFlow(
-  defaultModel,
-  defaultStreamingChunkSize,
+    return modelResponse.candidates[0].message;
+  },
 );
-
-async function getConfig() {
-  await template.load();
-  return template.evaluate();
-}
 
 function parseModel(modelString: string) {
   switch (modelString) {
@@ -257,7 +190,7 @@ export async function streamAgentFlow(
   sessionId: string,
   prompt: string,
 ) {
-  return streamFlow(await defineProdRestaurantBotFlow(), {
+  return streamFlow(restaurantBotFlow, {
     userId: userId,
     sessionId: sessionId,
     message: {
