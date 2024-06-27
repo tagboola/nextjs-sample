@@ -25,7 +25,7 @@ import {
   ServerTemplate,
   getRemoteConfig,
 } from "firebase-admin/remote-config";
-import { getApp, initializeApp } from "firebase-admin/app";
+import { App, getApp, initializeApp } from "firebase-admin/app";
 import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
 import {
   readMenuTool,
@@ -42,12 +42,15 @@ require("google-proto-files");
 
 // Don't re-initalize on hot reloads
 
-const firebaseApp =
-  getApp("nextjs-test-project") ||
-  initializeApp(
+let firebaseApp: App;
+try {
+  firebaseApp = getApp("nextjs-test-project");
+} catch (e) {
+  firebaseApp = initializeApp(
     { projectId: "nextjs-test-project-27ca7" },
     "nextjs-test-project",
   );
+}
 
 configureGenkit({
   plugins: [
@@ -136,12 +139,13 @@ const restaurantBotFlow = defineFirebaseAgent(
   async (request, session, streamingCallback) => {
     // Evaluate the remote config template for the request
     let config: ServerConfig;
+    const context = { randomizationId: request.sessionId };
     try {
-      config = template.evaluate({ randomizationId: request.sessionId });
+      config = template.evaluate(context);
     } catch (e) {
-      // Unfortunately FirebaseRemoteConfigError isn't exported
+      // Only load the template if we have to
       await template.load();
-      config = template.evaluate({ randomizationId: request.sessionId });
+      config = template.evaluate(context);
     }
     const model = parseModel(config.getString("model"));
     const chunkSize = config.getNumber("streaming_chunk_size");
