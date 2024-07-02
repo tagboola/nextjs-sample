@@ -7,7 +7,6 @@ export interface ChatHistoryProps {
   messages: Message[];
 }
 export function ChatHistory({ messages }: ChatHistoryProps) {
-  // Want to scroll to bottom as content is added, but this isn't working
   const messagesEndRef: any = useRef(null);
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

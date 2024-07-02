@@ -47,7 +47,7 @@ export function PromptForm({
       sessionId,
       completedMessages,
       incompleteMessage,
-      setMessages
+      setMessages,
     );
   }
 
@@ -70,7 +70,7 @@ export function PromptForm({
  */
 export async function* streamingFetch(
   input: RequestInfo | URL,
-  init?: RequestInit
+  init?: RequestInit,
 ) {
   const response = await fetch(input, init);
   const reader = response!.body!.getReader();
@@ -93,14 +93,14 @@ async function generateResponse(
   sessionId: string,
   completedMessages: Message[],
   incompleteMessage: Message,
-  setMessages: (value: Message[]) => void
+  setMessages: (value: Message[]) => void,
 ) {
-  const userId = localStorage.getItem('userUid') || "none"
+  const userId = localStorage.getItem("userUid") || "none";
 
   const response = await fetch(
     `/api/stream/generate?userUid=${userId}&sessionId=${sessionId}&prompt=${encodeURIComponent(
-      prompt
-    )}`
+      prompt,
+    )}`,
   );
 
   const body = response.body;
