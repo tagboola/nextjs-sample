@@ -22,11 +22,9 @@ import {
 } from "./agent";
 import {
   ServerConfig,
-  ServerTemplate,
   getRemoteConfig,
 } from "firebase-admin/remote-config";
 import { App, getApp, initializeApp } from "firebase-admin/app";
-import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
 import {
   readMenuTool,
   flakyMenuTool,
