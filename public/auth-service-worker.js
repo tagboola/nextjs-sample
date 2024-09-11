@@ -1,6 +1,6 @@
 "use strict";
 (() => {
-  // node_modules/@firebase/util/dist/index.esm2017.js
+  // node_modules/.pnpm/@firebase+util@1.9.7/node_modules/@firebase/util/dist/index.esm2017.js
   var stringToByteArray$1 = function(str) {
     const out = [];
     let p = 0;
@@ -662,7 +662,7 @@
     }
   }
 
-  // node_modules/@firebase/component/dist/esm/index.esm2017.js
+  // node_modules/.pnpm/@firebase+component@0.6.8/node_modules/@firebase/component/dist/esm/index.esm2017.js
   var Component = class {
     /**
      *
@@ -951,7 +951,7 @@
     }
   };
 
-  // node_modules/@firebase/logger/dist/esm/index.esm2017.js
+  // node_modules/.pnpm/@firebase+logger@0.4.2/node_modules/@firebase/logger/dist/esm/index.esm2017.js
   var instances = [];
   var LogLevel;
   (function(LogLevel2) {
@@ -1057,7 +1057,7 @@
     }
   };
 
-  // node_modules/idb/build/wrap-idb-value.js
+  // node_modules/.pnpm/idb@7.1.1/node_modules/idb/build/wrap-idb-value.js
   var instanceOfAny = (object, constructors) => constructors.some((c) => object instanceof c);
   var idbProxyableTypes;
   var cursorAdvanceMethods;
@@ -1200,7 +1200,7 @@
   }
   var unwrap = (value) => reverseTransformCache.get(value);
 
-  // node_modules/idb/build/index.js
+  // node_modules/.pnpm/idb@7.1.1/node_modules/idb/build/index.js
   function openDB(name5, version5, { blocked, upgrade, blocking, terminated } = {}) {
     const request = indexedDB.open(name5, version5);
     const openPromise = wrap(request);
@@ -1264,7 +1264,7 @@
     has: (target, prop) => !!getMethod(target, prop) || oldTraps.has(target, prop)
   }));
 
-  // node_modules/@firebase/app/dist/esm/index.esm2017.js
+  // node_modules/.pnpm/@firebase+app@0.10.10/node_modules/@firebase/app/dist/esm/index.esm2017.js
   var PlatformLoggerServiceImpl = class {
     constructor(container) {
       this.container = container;
@@ -1288,7 +1288,7 @@
     return (component === null || component === void 0 ? void 0 : component.type) === "VERSION";
   }
   var name$p = "@firebase/app";
-  var version$1 = "0.10.5";
+  var version$1 = "0.10.10";
   var logger = new Logger("@firebase/app");
   var name$o = "@firebase/app-compat";
   var name$n = "@firebase/analytics-compat";
@@ -1315,7 +1315,7 @@
   var name$2 = "@firebase/vertexai-preview";
   var name$1 = "@firebase/firestore-compat";
   var name = "firebase";
-  var version = "10.12.2";
+  var version = "10.13.1";
   var DEFAULT_ENTRY_NAME2 = "[DEFAULT]";
   var PLATFORM_LOG_STRING = {
     [name$p]: "fire-core",
@@ -1658,26 +1658,30 @@
      */
     async triggerHeartbeat() {
       var _a, _b;
-      const platformLogger = this.container.getProvider("platform-logger").getImmediate();
-      const agent = platformLogger.getPlatformInfoString();
-      const date = getUTCDateString();
-      if (((_a = this._heartbeatsCache) === null || _a === void 0 ? void 0 : _a.heartbeats) == null) {
-        this._heartbeatsCache = await this._heartbeatsCachePromise;
-        if (((_b = this._heartbeatsCache) === null || _b === void 0 ? void 0 : _b.heartbeats) == null) {
-          return;
+      try {
+        const platformLogger = this.container.getProvider("platform-logger").getImmediate();
+        const agent = platformLogger.getPlatformInfoString();
+        const date = getUTCDateString();
+        if (((_a = this._heartbeatsCache) === null || _a === void 0 ? void 0 : _a.heartbeats) == null) {
+          this._heartbeatsCache = await this._heartbeatsCachePromise;
+          if (((_b = this._heartbeatsCache) === null || _b === void 0 ? void 0 : _b.heartbeats) == null) {
+            return;
+          }
         }
+        if (this._heartbeatsCache.lastSentHeartbeatDate === date || this._heartbeatsCache.heartbeats.some((singleDateHeartbeat) => singleDateHeartbeat.date === date)) {
+          return;
+        } else {
+          this._heartbeatsCache.heartbeats.push({ date, agent });
+        }
+        this._heartbeatsCache.heartbeats = this._heartbeatsCache.heartbeats.filter((singleDateHeartbeat) => {
+          const hbTimestamp = new Date(singleDateHeartbeat.date).valueOf();
+          const now = Date.now();
+          return now - hbTimestamp <= STORED_HEARTBEAT_RETENTION_MAX_MILLIS;
+        });
+        return this._storage.overwrite(this._heartbeatsCache);
+      } catch (e) {
+        logger.warn(e);
       }
-      if (this._heartbeatsCache.lastSentHeartbeatDate === date || this._heartbeatsCache.heartbeats.some((singleDateHeartbeat) => singleDateHeartbeat.date === date)) {
-        return;
-      } else {
-        this._heartbeatsCache.heartbeats.push({ date, agent });
-      }
-      this._heartbeatsCache.heartbeats = this._heartbeatsCache.heartbeats.filter((singleDateHeartbeat) => {
-        const hbTimestamp = new Date(singleDateHeartbeat.date).valueOf();
-        const now = Date.now();
-        return now - hbTimestamp <= STORED_HEARTBEAT_RETENTION_MAX_MILLIS;
-      });
-      return this._storage.overwrite(this._heartbeatsCache);
     }
     /**
      * Returns a base64 encoded string which can be attached to the heartbeat-specific header directly.
@@ -1688,24 +1692,29 @@
      */
     async getHeartbeatsHeader() {
       var _a;
-      if (this._heartbeatsCache === null) {
-        await this._heartbeatsCachePromise;
-      }
-      if (((_a = this._heartbeatsCache) === null || _a === void 0 ? void 0 : _a.heartbeats) == null || this._heartbeatsCache.heartbeats.length === 0) {
+      try {
+        if (this._heartbeatsCache === null) {
+          await this._heartbeatsCachePromise;
+        }
+        if (((_a = this._heartbeatsCache) === null || _a === void 0 ? void 0 : _a.heartbeats) == null || this._heartbeatsCache.heartbeats.length === 0) {
+          return "";
+        }
+        const date = getUTCDateString();
+        const { heartbeatsToSend, unsentEntries } = extractHeartbeatsForHeader(this._heartbeatsCache.heartbeats);
+        const headerString = base64urlEncodeWithoutPadding(JSON.stringify({ version: 2, heartbeats: heartbeatsToSend }));
+        this._heartbeatsCache.lastSentHeartbeatDate = date;
+        if (unsentEntries.length > 0) {
+          this._heartbeatsCache.heartbeats = unsentEntries;
+          await this._storage.overwrite(this._heartbeatsCache);
+        } else {
+          this._heartbeatsCache.heartbeats = [];
+          void this._storage.overwrite(this._heartbeatsCache);
+        }
+        return headerString;
+      } catch (e) {
+        logger.warn(e);
         return "";
       }
-      const date = getUTCDateString();
-      const { heartbeatsToSend, unsentEntries } = extractHeartbeatsForHeader(this._heartbeatsCache.heartbeats);
-      const headerString = base64urlEncodeWithoutPadding(JSON.stringify({ version: 2, heartbeats: heartbeatsToSend }));
-      this._heartbeatsCache.lastSentHeartbeatDate = date;
-      if (unsentEntries.length > 0) {
-        this._heartbeatsCache.heartbeats = unsentEntries;
-        await this._storage.overwrite(this._heartbeatsCache);
-      } else {
-        this._heartbeatsCache.heartbeats = [];
-        void this._storage.overwrite(this._heartbeatsCache);
-      }
-      return headerString;
     }
   };
   function getUTCDateString() {
@@ -1825,12 +1834,12 @@
   }
   registerCoreComponents("");
 
-  // node_modules/firebase/app/dist/esm/index.esm.js
+  // node_modules/.pnpm/firebase@10.13.1/node_modules/firebase/app/dist/esm/index.esm.js
   var name2 = "firebase";
-  var version2 = "10.12.2";
+  var version2 = "10.13.1";
   registerVersion(name2, version2, "app");
 
-  // node_modules/tslib/tslib.es6.mjs
+  // node_modules/.pnpm/tslib@2.7.0/node_modules/tslib/tslib.es6.mjs
   function __rest(s, e) {
     var t = {};
     for (var p in s)
@@ -1844,7 +1853,7 @@
     return t;
   }
 
-  // node_modules/@firebase/auth/dist/esm2017/index-454a0f5f.js
+  // node_modules/.pnpm/@firebase+auth@1.7.8_@firebase+app@0.10.10/node_modules/@firebase/auth/dist/esm2017/index-2788dcb0.js
   function _prodErrorMap() {
     return {
       [
@@ -3258,13 +3267,6 @@
   }
   function _isMobileBrowser(ua = getUA()) {
     return _isIOS(ua) || _isAndroid(ua) || _isWebOS(ua) || _isBlackBerry(ua) || /windows phone/i.test(ua) || _isIEMobile(ua);
-  }
-  function _isIframe() {
-    try {
-      return !!(window && window !== window.top);
-    } catch (e) {
-      return false;
-    }
   }
   function _getClientVersion(clientPlatform, frameworks = []) {
     let reportedPlatform;
@@ -4967,9 +4969,9 @@
       );
     }
     /**
-     * Creates a credential for Github.
+     * Creates a credential for GitHub.
      *
-     * @param accessToken - Github access token.
+     * @param accessToken - GitHub access token.
      */
     static credential(accessToken) {
       return OAuthCredential._fromParams({
@@ -5243,10 +5245,6 @@
       return this.storageRetriever();
     }
   };
-  function _iframeCannotSyncWebStorage() {
-    const ua = getUA();
-    return _isSafari(ua) || _isIOS(ua);
-  }
   var _POLLING_INTERVAL_MS$1 = 1e3;
   var IE10_LOCAL_STORAGE_SYNC_DELAY = 10;
   var BrowserLocalPersistence = class extends BrowserPersistenceClass {
@@ -5260,7 +5258,6 @@
       this.listeners = {};
       this.localCache = {};
       this.pollTimer = null;
-      this.safariLocalStorageNotSynced = _iframeCannotSyncWebStorage() && _isIframe();
       this.fallbackToPolling = _isMobileBrowser();
       this._shouldAllowMigration = true;
     }
@@ -5285,18 +5282,6 @@
         this.detachListener();
       } else {
         this.stopPolling();
-      }
-      if (this.safariLocalStorageNotSynced) {
-        const storedValue2 = this.storage.getItem(key);
-        if (event.newValue !== storedValue2) {
-          if (event.newValue !== null) {
-            this.storage.setItem(key, event.newValue);
-          } else {
-            this.storage.removeItem(key);
-          }
-        } else if (this.localCache[key] === event.newValue && !poll) {
-          return;
-        }
       }
       const triggerListeners = () => {
         const storedValue2 = this.storage.getItem(key);
@@ -5500,7 +5485,7 @@
      * Unsubscribe an event handler from a particular event.
      *
      * @param eventType - Event name to unsubscribe from.
-     * @param eventHandler - Optinoal event handler, if none provided, unsubscribe all handlers on this event.
+     * @param eventHandler - Optional event handler, if none provided, unsubscribe all handlers on this event.
      *
      */
     _unsubscribe(eventType, eventHandler) {
@@ -7203,7 +7188,7 @@
     return typeof input === "undefined" || (input === null || input === void 0 ? void 0 : input.length) === 0;
   }
   var name3 = "@firebase/auth";
-  var version3 = "1.7.4";
+  var version3 = "1.7.8";
   var AuthInterop = class {
     constructor(auth2) {
       this.auth = auth2;
@@ -7408,9 +7393,9 @@
     /* ClientPlatform.BROWSER */
   );
 
-  // node_modules/@firebase/installations/dist/esm/index.esm2017.js
+  // node_modules/.pnpm/@firebase+installations@0.6.8_@firebase+app@0.10.10/node_modules/@firebase/installations/dist/esm/index.esm2017.js
   var name4 = "@firebase/installations";
-  var version4 = "0.6.7";
+  var version4 = "0.6.8";
   var PENDING_TIMEOUT_MS = 1e4;
   var PACKAGE_VERSION = `w:${version4}`;
   var INTERNAL_AUTH_VERSION = "FIS_v2";
@@ -8023,7 +8008,6 @@
     if (!auth) {
       auth = getAuth(app);
     }
-    console.log("Intercepting fetch");
     const { origin } = new URL(fetchEvent.request.url);
     if (origin !== self.location.origin) {
       return;
@@ -8533,7 +8517,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2021 Google LLC
@@ -8551,7 +8535,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -8569,7 +8553,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -8587,7 +8571,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -8605,7 +8589,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -8623,7 +8607,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -8641,7 +8625,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -8675,7 +8659,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -8725,7 +8709,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -8743,7 +8727,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -8761,7 +8745,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -8779,7 +8763,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -8813,7 +8797,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -8831,7 +8815,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -8849,7 +8833,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -8867,7 +8851,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -8885,7 +8869,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -8903,7 +8887,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2019 Google LLC
@@ -8921,7 +8905,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2019 Google LLC
@@ -8955,7 +8939,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -8973,7 +8957,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -8991,7 +8975,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -9009,7 +8993,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -9027,7 +9011,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -9045,7 +9029,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -9063,7 +9047,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -9081,7 +9065,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -9099,7 +9083,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -9117,7 +9101,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -9135,7 +9119,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2019 Google LLC
@@ -9153,7 +9137,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -9171,7 +9155,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -9189,7 +9173,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -9207,7 +9191,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -9225,7 +9209,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2019 Google LLC
@@ -9275,7 +9259,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -9293,7 +9277,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -9311,7 +9295,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -9329,7 +9313,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -9379,7 +9363,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -9397,7 +9381,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -9415,7 +9399,7 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm2017/index-454a0f5f.js:
+@firebase/auth/dist/esm2017/index-2788dcb0.js:
   (**
    * @license
    * Copyright 2020 Google LLC
