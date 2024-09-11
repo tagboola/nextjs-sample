@@ -58,11 +58,11 @@ configureGenkit({
     firebase(),
     firebaseAgent(),
     googleCloud({
-      // set to true to force telemetry export in 'dev'
-      forceDevExport: true,
       // These are configured for demonstration purposes. Sensible defaults are
       // in place in the event that telemetryConfig is absent.
       telemetryConfig: {
+        // set to true to force telemetry export in 'dev'
+        forceDevExport: true,
         sampler: new AlwaysOnSampler(),
         autoInstrumentation: true,
         autoInstrumentationConfig: {
