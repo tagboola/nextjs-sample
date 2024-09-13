@@ -47,12 +47,12 @@ export function defineFirebaseAgent(
       outputSchema: FirebaseAgentMessageSchema,
       streamSchema: GenerateResponseChunkSchema,
       authPolicy: (auth, input) => {
-        if (!auth) {
-          throw new Error("Authorization required.");
-        }
-        if (input.userId !== auth.uid) {
-          throw new Error("You may only access your own messages");
-        }
+        // if (!auth) {
+        //   throw new Error("Authorization required");
+        // }
+        // if (input.userId !== auth.uid) {
+        //   throw new Error("You may only access your own messages");
+        // }
       },
     },
     async (
