@@ -38,7 +38,7 @@ import {
 require("google-proto-files");
 
 // debug open telemetry issues
-// diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
+diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
 
 // Don't re-initalize on hot reloads
 
