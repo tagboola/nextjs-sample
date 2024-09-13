@@ -47,6 +47,8 @@ export function defineFirebaseAgent(
       outputSchema: FirebaseAgentMessageSchema,
       streamSchema: GenerateResponseChunkSchema,
       authPolicy: (auth, input) => {
+        console.log(JSON.stringify(auth));
+        console.log(JSON.stringify(input));
         // if (!auth) {
         //   throw new Error("Authorization required");
         // }

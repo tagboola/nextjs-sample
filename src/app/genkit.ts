@@ -64,7 +64,7 @@ configureGenkit({
         // set to true to force telemetry export in 'dev'
         forceDevExport: true,
         sampler: new AlwaysOnSampler(),
-        autoInstrumentation: true,
+        autoInstrumentation: false,
         autoInstrumentationConfig: {
           "@opentelemetry/instrumentation-fs": { enabled: false },
           "@opentelemetry/instrumentation-dns": { enabled: false },
